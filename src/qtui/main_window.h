@@ -55,6 +55,7 @@ private:
 
     QAction *m_menu_action, *m_search_action;
     QAction *m_play_pause_action, *m_stop_action, *m_stop_after_action;
+    QAction *m_stop_after_each_action;
     QAction * m_record_action;
     QAction *m_repeat_action, *m_shuffle_action;
 
@@ -123,7 +124,8 @@ private:
         hook16{"qtui show playback history", this,
                &MainWindow::show_playback_history},
         hook17{"qtui show playlist manager", this,
-               &MainWindow::show_playlist_manager};
+             &MainWindow::show_playlist_manager},
+         hook18{"set stop_after_each_song", this, &MainWindow::update_toggles};
 };
 
 #endif

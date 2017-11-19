@@ -84,6 +84,7 @@ static const char * event_desc[] = {N_("Previous track"),
                                     N_("Toggle repeat"),
                                     N_("Toggle shuffle"),
                                     N_("Toggle stop after current"),
+                                    N_("Toggle stop after each"),
                                     N_("Raise player window(s)"),
                                     N_("Previous album"),
                                     N_("Next album")};

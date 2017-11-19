@@ -466,6 +466,12 @@ static void stop_after_song_toggled ()
         mainwin_show_status_message (_("Stopping after song."));
 }
 
+static void stop_after_each_song_toggled ()
+{
+    if (aud_get_bool (nullptr, "stop_after_each_song"))
+        mainwin_show_status_message (_("Stopping after each song."));
+}
+
 bool MainWindow::scroll (QWheelEvent * event)
 {
     m_scroll_delta_x += event->angleDelta ().x ();
@@ -1138,6 +1144,7 @@ static void mainwin_create_window ()
     hook_associate ("set shuffle", (HookFunction) shuffle_toggled, nullptr);
     hook_associate ("set no_playlist_advance", (HookFunction) no_advance_toggled, nullptr);
     hook_associate ("set stop_after_current_song", (HookFunction) stop_after_song_toggled, nullptr);
+    hook_associate ("set stop_after_each_song", (HookFunction) stop_after_each_song_toggled, nullptr);
 }
 
 void mainwin_unhook ()
@@ -1161,6 +1168,7 @@ void mainwin_unhook ()
     hook_dissociate ("set shuffle", (HookFunction) shuffle_toggled);
     hook_dissociate ("set no_playlist_advance", (HookFunction) no_advance_toggled);
     hook_dissociate ("set stop_after_current_song", (HookFunction) stop_after_song_toggled);
+    hook_dissociate ("set stop_after_each_song", (HookFunction) stop_after_each_song_toggled);
 
     start_stop_visual (true);
 

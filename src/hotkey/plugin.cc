@@ -269,6 +269,12 @@ bool handle_keyevent(EVENT event)
         return true;
     }
 
+    if (event == EVENT_TOGGLE_STOP_EACH)
+    {
+        aud_toggle_bool (nullptr, "stop_after_each_song");
+        return true;
+    }
+
     if (event == EVENT_RAISE)
     {
         aud_ui_show(true);

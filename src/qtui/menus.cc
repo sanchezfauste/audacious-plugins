@@ -161,6 +161,9 @@ QMenuBar * qtui_build_menubar(QWidget * parent)
         audqt::MenuToggle({N_("Stop A_fter This Song"), nullptr, "Ctrl+M"},
                           {nullptr, "stop_after_current_song",
                            "set stop_after_current_song"}),
+        audqt::MenuToggle({N_("Stop After _Each Song"), nullptr, "Ctrl+B"},
+                          {nullptr, "stop_after_each_song",
+                           "set stop_after_each_song"}),
         audqt::MenuSep(),
         audqt::MenuCommand(
             {N_("Song _Info ..."), "dialog-information", "Ctrl+I"},
