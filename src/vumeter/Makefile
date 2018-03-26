@@ -1,6 +1,6 @@
 PLUGIN = vumeter${PLUGIN_SUFFIX}
 
-SRCS = vumeter.cc
+SRCS = vumeter.cc truepeakdsp.cc zita-resampler/resampler-table.cc zita-resampler/resampler.cc
 
 include ../../buildsys.mk
 include ../../extra.mk

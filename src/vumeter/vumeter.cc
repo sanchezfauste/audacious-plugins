@@ -30,6 +30,8 @@
 #include <libaudgui/libaudgui.h>
 #include <libaudgui/libaudgui-gtk.h>
 
+#include "truepeakdsp.h"
+
 #define MAX_BANDS   (256)
 #define DB_RANGE 65
 
@@ -64,6 +66,8 @@ static gint64 last_peak_times[MAX_BANDS + 1]; // Time elapsed since peak was set
 static gint64 peak_hold_time = 1600000; // Time to hold peak in microseconds
 static gint64 last_render_time = 0;
 static float falloff = 13.3/1000000; // 13.3 db/second
+static TruePeakdsp *meter;
+static TruePeakdsp *meter2;
 
 static float fclamp(float x, float low, float high)
 {
@@ -78,38 +82,56 @@ void VUMeter::render_multi_pcm (const float * pcm, int channels)
     nchannels = channels;
     bands = channels + 2;
 
-    float peaks[channels];
+    /*float peaks[channels];
     for (int channel = 0; channel < channels; channel++)
     {
         peaks[channel] = pcm[channel];
-    }
+    }*/
 
-    for (int i = 0; i < 512 * channels;)
+    float buf[512];
+    float buf2[512];
+    for (int i = 0, j=0; i < 512 * channels;) {
+        buf[j] = pcm[i++];
+        buf2[j++] = pcm[i++];
+    }
+    meter->process(buf, 512);
+    float m, p;
+    meter->read(m, p);
+    meter2->process(buf2, 512);
+    float m2, p2;
+    meter2->read(m2, p2);
+    printf("m: %f, p: %f\n", 20 * log10f (m), 20 * log10f (p));
+
+    /*for (int i = 0; i < 512 * channels;)
     {
         for (int channel = 0; channel < channels; channel++)
         {
             peaks[channel] = fmaxf(peaks[channel], fabsf(pcm[i++]));
         }
-    }
+    }*/
 
     for (int i = 0; i < channels; i ++)
     {
-        float n = peaks[i];
+        //float n = peaks[i];
+        float n = i == 0 ? m : m2;
+        float pe = i == 0 ? p : p2;
 
         float x = DB_RANGE + 20 * log10f (n);
         x = fclamp (x, 0, DB_RANGE);
 
-        bars[i] = fclamp(bars[i] - elapsed_render_time * falloff, 0, DB_RANGE);
+        /*bars[i] = fclamp(bars[i] - elapsed_render_time * falloff, 0, DB_RANGE);
 
         if (x > bars[i])
         {
             bars[i] = x;
-        }
+        }*/
         gint64 elapsed_peak_time = current_time - last_peak_times[i];
         if (x > peak[i] || elapsed_peak_time > peak_hold_time) {
             peak[i] = x;
             last_peak_times[i] = g_get_monotonic_time();
         }
+
+        bars[i] = x;
     }
 
     if (spect_widget)
@@ -121,6 +143,10 @@ void VUMeter::clear ()
     memset (bars, 0, sizeof bars);
     memset (peak, 0, sizeof peak);
     memset (last_peak_times, 0, sizeof last_peak_times);
+    meter = new TruePeakdsp();
+    meter->init(44100);
+    meter2 = new TruePeakdsp();
+    meter2->init(44100);
 
     if (spect_widget)
         gtk_widget_queue_draw (spect_widget);
