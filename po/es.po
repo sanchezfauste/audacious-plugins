@@ -1722,6 +1722,10 @@ msgstr "No avan_zar la lista de reproducción"
 msgid "Stop A_fter This Song"
 msgstr "Dete_ner después de esta canción"
 
+#: src/gtkui/menus.cc:103 src/qtui/menus.cc:97
+msgid "Stop After _Each Song"
+msgstr "Detener después de _cada canción"
+
 #: src/gtkui/menus.cc:106 src/gtkui/menus.cc:210 src/qtui/menus.cc:166
 #: src/qtui/menus.cc:301
 msgid "Song _Info ..."
@@ -2157,6 +2161,10 @@ msgstr "Modo de lista de reproducción."
 #: src/gtkui/ui_statusbar.cc:118 src/skins/main.cc:486 src/skins-qt/main.cc:469
 msgid "Stopping after song."
 msgstr "Detener después de la canción."
+
+#: src/gtkui/ui_statusbar.cc:125 src/skins/main.cc:479 src/skins-qt/main.cc:465
+msgid "Stopping after each song."
+msgstr "Parar después de cada canción."
 
 #: src/hotkey/gui.cc:71 src/qthotkey/gui.cc:66
 msgid "Previous track"
@@ -3167,6 +3175,10 @@ msgstr ""
 #: src/skins/menus.cc:107 src/skins-qt/menus.cc:99
 msgid "Stop After This Song"
 msgstr "Detener después de esta canción"
+
+#: src/qtui/main_window.cc:112 src/skins/menus.cc:108 src/skins-qt/menus.cc:99
+msgid "Stop After Each Song"
+msgstr "Detener después de cada canción"
 
 #: src/qtui/menus.cc:113
 msgid "_Open Folder ..."

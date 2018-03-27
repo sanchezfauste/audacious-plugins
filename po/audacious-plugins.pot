@@ -1581,6 +1581,10 @@ msgstr ""
 msgid "Stop A_fter This Song"
 msgstr ""
 
+#: src/gtkui/menus.cc:103 src/qtui/menus.cc:97
+msgid "Stop After _Each Song"
+msgstr ""
+
 #: src/gtkui/menus.cc:106 src/gtkui/menus.cc:210 src/qtui/menus.cc:166
 #: src/qtui/menus.cc:301
 msgid "Song _Info ..."
@@ -2014,6 +2018,10 @@ msgstr ""
 
 #: src/gtkui/ui_statusbar.cc:118 src/skins/main.cc:486 src/skins-qt/main.cc:469
 msgid "Stopping after song."
+msgstr ""
+
+#: src/gtkui/ui_statusbar.cc:125 src/skins/main.cc:479 src/skins-qt/main.cc:465
+msgid "Stopping after each song."
 msgstr ""
 
 #: src/hotkey/gui.cc:71 src/qthotkey/gui.cc:66
@@ -2889,6 +2897,10 @@ msgstr ""
 #: src/qtui/main_window.cc:160 src/qtui/main_window.cc:161
 #: src/skins/menus.cc:107 src/skins-qt/menus.cc:99
 msgid "Stop After This Song"
+msgstr ""
+
+#: src/qtui/main_window.cc:112 src/skins/menus.cc:108 src/skins-qt/menus.cc:99
+msgid "Stop After Each Song"
 msgstr ""
 
 #: src/qtui/menus.cc:113
