@@ -1784,6 +1784,10 @@ msgstr "N_o avancis la llista de reproducció"
 msgid "Stop A_fter This Song"
 msgstr "Atura d_esprés d'aquesta cançó"
 
+#: src/gtkui/menus.cc:103 src/qtui/menus.cc:97
+msgid "Stop After _Each Song"
+msgstr "Atura després de _cada cançó"
+
 #: src/gtkui/menus.cc:104 src/gtkui/menus.cc:205 src/qtui/menus.cc:96
 #: src/qtui/menus.cc:198
 msgid "Song _Info ..."
@@ -2136,6 +2140,10 @@ msgstr "Mode de llista de reproducció."
 #: src/gtkui/ui_statusbar.cc:117 src/skins/main.cc:470 src/skins-qt/main.cc:448
 msgid "Stopping after song."
 msgstr "Aturada després de la cançó."
+
+#: src/gtkui/ui_statusbar.cc:125 src/skins/main.cc:479 src/skins-qt/main.cc:465
+msgid "Stopping after each song."
+msgstr "Aturada després de cada cançó."
 
 #: src/hotkey/gui.cc:71
 msgid "Previous track"
@@ -2889,6 +2897,10 @@ msgstr "Anterior"
 #: src/qtui/main_window.cc:118 src/skins/menus.cc:107 src/skins-qt/menus.cc:96
 msgid "Stop After This Song"
 msgstr "Atura després d'aquesta cançó"
+
+#: src/qtui/main_window.cc:112 src/skins/menus.cc:108 src/skins-qt/menus.cc:99
+msgid "Stop After Each Song"
+msgstr "Atura després de cada cançó"
 
 #: src/qtui/main_window.cc:121 src/qtui/menus.cc:168 src/skins/menus.cc:79
 #: src/skins-qt/menus.cc:67
