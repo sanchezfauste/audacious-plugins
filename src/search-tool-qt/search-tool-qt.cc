@@ -79,13 +79,16 @@ static void trigger_search ();
 
 const char * const SearchToolQt::defaults[] = {
     "max_results", "20",
+    "rescan_on_startup", "FALSE",
     nullptr
 };
 
 const PreferencesWidget SearchToolQt::widgets[] = {
-    WidgetSpin (N_("Maximum number of search results"),
+    WidgetSpin (N_("Number of results to show:"),
         WidgetInt (CFG_ID, "max_results", trigger_search),
          {10, 10000, 10}),
+    WidgetCheck (N_("Rescan library at startup"),
+        WidgetBool (CFG_ID, "rescan_on_startup"))
 };
 
 const PluginPreferences SearchToolQt::prefs = {{widgets}};
@@ -168,7 +171,7 @@ protected:
 static void init_text_document (QTextDocument & doc, const QStyleOptionViewItem & option)
 {
     doc.setHtml (option.text);
-    doc.setDocumentMargin (0);
+    doc.setDocumentMargin (audqt::sizes.TwoPt);
     doc.setDefaultFont (option.font);
 }
 
@@ -200,7 +203,6 @@ void HtmlDelegate::paint (QPainter * painter, const QStyleOptionViewItem & optio
         ctx.palette.setColor (QPalette::Text, option.palette.color (cg, QPalette::Text));
 
     QRect textRect = style->subElementRect (QStyle::SE_ItemViewItemText, & option);
-    textRect.setLeft (textRect.left () + audqt::sizes.TwoPt);
     painter->save ();
     painter->translate (textRect.topLeft ());
     painter->setClipRect (textRect.translated (-textRect.topLeft ()));
@@ -671,6 +673,9 @@ static void playlist_update_cb (void *, void *)
 static void search_init ()
 {
     find_playlist ();
+
+    if (aud_get_bool (CFG_ID, "rescan_on_startup"))
+        begin_add (get_uri ());
 
     update_database ();
 
