@@ -2704,19 +2704,6 @@ msgstr ""
 msgid "Stop After Each Song"
 msgstr ""
 
-#: src/qtui/main_window.cc:121 src/qtui/menus.cc:168 src/skins/menus.cc:79
-#: src/skins-qt/menus.cc:67
-msgid "Record Stream"
-msgstr ""
-
-#: src/qtui/main_window.cc:127 src/skins/menus.cc:103 src/skins-qt/menus.cc:92
-msgid "Repeat"
-msgstr ""
-
-#: src/qtui/main_window.cc:129 src/skins/menus.cc:104 src/skins-qt/menus.cc:93
-msgid "Shuffle"
-msgstr ""
-
 #: src/qtui/menus.cc:69
 msgid "_Open Folder ..."
 msgstr ""
