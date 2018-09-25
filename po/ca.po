@@ -2958,11 +2958,6 @@ msgstr "Atura després d'aquesta cançó"
 msgid "Stop After Each Song"
 msgstr "Atura després de cada cançó"
 
-#: src/qtui/main_window.cc:121 src/qtui/menus.cc:168 src/skins/menus.cc:79
-#: src/skins-qt/menus.cc:67
-msgid "Record Stream"
-msgstr "Enregistra el flux"
-
 #: src/qtui/main_window.cc:127 src/skins/menus.cc:103 src/skins-qt/menus.cc:92
 msgid "Repeat"
 msgstr "Repeteix"
