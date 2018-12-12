@@ -20,18 +20,17 @@
 #ifndef PLAYLIST_H
 #define PLAYLIST_H
 
-#include <QTreeView>
-
 #include <libaudcore/hook.h>
 #include <libaudcore/mainloop.h>
 #include <libaudcore/playlist.h>
+#include <libaudqt/treeview.h>
 
 class PlaylistModel;
 class PlaylistProxyModel;
 class QContextMenuEvent;
 class QMenu;
 
-class PlaylistWidget : public QTreeView
+class PlaylistWidget : public audqt::TreeView
 {
 public:
     PlaylistWidget (QWidget * parent, Playlist playlist);
@@ -43,7 +42,6 @@ public:
     bool scrollToCurrent (bool force = false);
     void updatePlaybackIndicator ();
     void playlistUpdate ();
-    void playCurrentIndex ();
     void setFilter (const char * text);
     void setFirstVisibleColumn (int col);
     void moveFocus (int distance);
@@ -72,11 +70,11 @@ private:
      QItemSelection & selected, QItemSelection & deselected);
     void updateSelection (int rowsBefore, int rowsAfter);
 
+    void activate (const QModelIndex & index);
     void contextMenuEvent (QContextMenuEvent * event);
     void keyPressEvent (QKeyEvent * event);
-    void mouseDoubleClickEvent (QMouseEvent * event);
     void mouseMoveEvent (QMouseEvent * event);
-    void leaveEvent (QEvent *);
+    void leaveEvent (QEvent * event);
     void dragMoveEvent (QDragMoveEvent * event);
     void dropEvent (QDropEvent * event);
     void currentChanged (const QModelIndex & current, const QModelIndex & previous);
