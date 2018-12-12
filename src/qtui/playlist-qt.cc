@@ -34,7 +34,7 @@
 #include "../ui-common/menu-ops.h"
 
 PlaylistWidget::PlaylistWidget (QWidget * parent, Playlist playlist) :
-    QTreeView (parent),
+    audqt::TreeView (parent),
     m_playlist (playlist),
     model (new PlaylistModel (this, playlist)),
     proxyModel (new PlaylistProxyModel (this, playlist))
@@ -114,6 +114,15 @@ QModelIndex PlaylistWidget::visibleIndexNear (int row)
     return index;
 }
 
+void PlaylistWidget::activate (const QModelIndex & index)
+{
+    if (index.isValid ())
+    {
+        m_playlist.set_position (indexToRow (index));
+        m_playlist.start_playback ();
+    }
+}
+
 void PlaylistWidget::contextMenuEvent (QContextMenuEvent * event)
 {
     if (contextMenu)
@@ -127,15 +136,11 @@ void PlaylistWidget::keyPressEvent (QKeyEvent * event)
     {
         switch (event->key ())
         {
-        case Qt::Key_Enter:
-        case Qt::Key_Return:
-            playCurrentIndex ();
-            return;
         case Qt::Key_Right:
-            aud_drct_seek (aud_drct_get_time () + aud_get_double ("qtui", "step_size") * 1000);
+            aud_drct_seek (aud_drct_get_time () + aud_get_int (0, "step_size") * 1000);
             return;
         case Qt::Key_Left:
-            aud_drct_seek (aud_drct_get_time () - aud_get_double ("qtui", "step_size") * 1000);
+            aud_drct_seek (aud_drct_get_time () - aud_get_int (0, "step_size") * 1000);
             return;
         case Qt::Key_Space:
             aud_drct_play_pause ();
@@ -161,17 +166,7 @@ void PlaylistWidget::keyPressEvent (QKeyEvent * event)
         }
     }
 
-    QTreeView::keyPressEvent (event);
-}
-
-void PlaylistWidget::mouseDoubleClickEvent (QMouseEvent * event)
-{
-    QModelIndex index = indexAt (event->pos ());
-    if (! index.isValid ())
-        return;
-
-    if (event->button () == Qt::LeftButton)
-        playCurrentIndex ();
+    audqt::TreeView::keyPressEvent (event);
 }
 
 void PlaylistWidget::mouseMoveEvent (QMouseEvent * event)
@@ -179,18 +174,18 @@ void PlaylistWidget::mouseMoveEvent (QMouseEvent * event)
     int row = indexToRow (indexAt (event->pos ()));
 
     if (row < 0)
-    {
         hidePopup ();
-        return;
-    }
-
-    if (aud_get_bool (nullptr, "show_filepopup_for_tuple") && m_popup_pos != row)
+    else if (aud_get_bool (nullptr, "show_filepopup_for_tuple") && m_popup_pos != row)
         triggerPopup (row);
+
+    audqt::TreeView::mouseMoveEvent (event);
 }
 
-void PlaylistWidget::leaveEvent (QEvent *)
+void PlaylistWidget::leaveEvent (QEvent * event)
 {
     hidePopup ();
+
+    audqt::TreeView::leaveEvent (event);
 }
 
 /* Since Qt doesn't support both DragDrop and InternalMove at once,
@@ -200,7 +195,7 @@ void PlaylistWidget::dragMoveEvent (QDragMoveEvent * event)
     if (event->source () == this)
         event->setDropAction (Qt::MoveAction);
 
-    QTreeView::dragMoveEvent (event);
+    audqt::TreeView::dragMoveEvent (event);
 
     if (event->source () == this)
         event->setDropAction (Qt::MoveAction);
@@ -210,7 +205,7 @@ void PlaylistWidget::dropEvent (QDropEvent * event)
 {
     /* let Qt forward external drops to the PlaylistModel */
     if (event->source () != this)
-        return QTreeView::dropEvent (event);
+        return audqt::TreeView::dropEvent (event);
 
     int from = indexToRow (currentIndex ());
     if (from < 0)
@@ -239,7 +234,7 @@ void PlaylistWidget::dropEvent (QDropEvent * event)
 
 void PlaylistWidget::currentChanged (const QModelIndex & current, const QModelIndex & previous)
 {
-    QTreeView::currentChanged (current, previous);
+    audqt::TreeView::currentChanged (current, previous);
 
     if (! inUpdate)
         m_playlist.set_focus (indexToRow (current));
@@ -248,7 +243,7 @@ void PlaylistWidget::currentChanged (const QModelIndex & current, const QModelIn
 void PlaylistWidget::selectionChanged (const QItemSelection & selected,
  const QItemSelection & deselected)
 {
-    QTreeView::selectionChanged (selected, deselected);
+    audqt::TreeView::selectionChanged (selected, deselected);
 
     if (! inUpdate)
     {
@@ -394,12 +389,6 @@ void PlaylistWidget::playlistUpdate ()
     updateSelection (update.before, update.after);
 
     inUpdate = false;
-}
-
-void PlaylistWidget::playCurrentIndex ()
-{
-    m_playlist.set_position (indexToRow (currentIndex ()));
-    m_playlist.start_playback ();
 }
 
 void PlaylistWidget::setFilter (const char * text)

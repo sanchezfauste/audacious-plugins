@@ -5,7 +5,7 @@ dnl ***
 dnl Initialize
 dnl ==========
 AC_PREREQ([2.59])
-AC_INIT([audacious-plugins], [3.10])
+AC_INIT([audacious-plugins], [3.11-devel])
 AC_COPYRIGHT([Copyright (C) 2001-2018 Audacious developers and others])
 
 AC_DEFINE_UNQUOTED([PACKAGE], "$PACKAGE_NAME", [Name of package])
@@ -32,9 +32,9 @@ LIBS="$LIBS $LIBINTL"
 dnl Check for Audacious
 dnl ===================
 
-PKG_CHECK_MODULES(AUDACIOUS, [audacious >= 3.10],
+PKG_CHECK_MODULES(AUDACIOUS, [audacious >= 3.11],
     [],
-    [AC_MSG_ERROR([Cannot find Audacious 3.10; have you installed Audacious yet?])]
+    [AC_MSG_ERROR([Cannot find Audacious 3.11; have you installed Audacious yet?])]
 )
 
 CPPFLAGS="$CPPFLAGS $AUDACIOUS_CFLAGS"
@@ -414,7 +414,11 @@ ENABLE_PLUGIN_WITH_TEST(mpris2,
     GENERAL)
 
 test_songchange () {
-    AC_CHECK_HEADERS(sys/wait.h, have_songchange=yes, have_songchange=no)
+    if test $HAVE_MSWINDOWS = yes ; then
+        have_songchange=yes
+    else
+        AC_CHECK_HEADERS(sys/wait.h, have_songchange=yes, have_songchange=no)
+    fi
 }
 
 ENABLE_PLUGIN_WITH_TEST(songchange,
