@@ -108,20 +108,20 @@ MainWindow::MainWindow () :
         ToolBarAction ("media-playback-start", N_("Play"), N_("Play"), aud_drct_play_pause, & m_play_pause_action),
         ToolBarAction ("media-playback-stop", N_("Stop"), N_("Stop"), aud_drct_stop, & m_stop_action),
         ToolBarAction ("media-playback-stop", N_("Stop After This Song"), N_("Stop After This Song"),
-            [] (bool on) { aud_set_bool (nullptr, "stop_after_current_song", on); }, & m_stop_after_action),
+            [] (bool on) { aud_set_bool ("stop_after_current_song", on); }, & m_stop_after_action),
         ToolBarAction ("media-playback-stop", N_("Stop After Each Song"), N_("Stop After Each Song"),
-            [] (bool on) { aud_set_bool (nullptr, "stop_after_each_song", on); }, & m_stop_after_each_action),
+            [] (bool on) { aud_set_bool ("stop_after_each_song", on); }, & m_stop_after_each_action),
         ToolBarAction ("media-skip-forward", N_("Next"), N_("Next"), aud_drct_pl_next),
         ToolBarAction ("media-record", N_("Record Stream"), N_("Record Stream"),
-            [] (bool on) { aud_set_bool (nullptr, "record", on); }, & m_record_action),
+            [] (bool on) { aud_set_bool ("record", on); }, & m_record_action),
         ToolBarSeparator (),
         ToolBarCustom (slider),
         ToolBarCustom (slider->label ()),
         ToolBarSeparator (),
         ToolBarAction ("media-playlist-repeat", N_("Repeat"), N_("Repeat"),
-            [] (bool on) { aud_set_bool (nullptr, "repeat", on); }, & m_repeat_action),
+            [] (bool on) { aud_set_bool ("repeat", on); }, & m_repeat_action),
         ToolBarAction ("media-playlist-shuffle", N_("Shuffle"), N_("Shuffle"),
-            [] (bool on) { aud_set_bool (nullptr, "shuffle", on); }, & m_shuffle_action),
+            [] (bool on) { aud_set_bool ("shuffle", on); }, & m_shuffle_action),
         ToolBarCustom (audqt::volume_button_new (this))
     };
 
@@ -240,8 +240,8 @@ void MainWindow::update_toggles ()
     if (m_search_tool)
         m_search_action->setChecked (aud_plugin_get_enabled (m_search_tool));
 
-    bool stop_after_each = aud_get_bool (nullptr, "stop_after_each_song");
-    bool stop_after = aud_get_bool (nullptr, "stop_after_current_song");
+    bool stop_after_each = aud_get_bool ("stop_after_each_song");
+    bool stop_after = aud_get_bool ("stop_after_current_song");
     if (stop_after_each) {
         m_stop_action->setVisible (false);
         m_stop_after_action->setVisible (false);
@@ -263,10 +263,10 @@ void MainWindow::update_toggles ()
     }
 
     m_record_action->setVisible (aud_drct_get_record_enabled ());
-    m_record_action->setChecked (aud_get_bool (nullptr, "record"));
+    m_record_action->setChecked (aud_get_bool ("record"));
 
-    m_repeat_action->setChecked (aud_get_bool (nullptr, "repeat"));
-    m_shuffle_action->setChecked (aud_get_bool (nullptr, "shuffle"));
+    m_repeat_action->setChecked (aud_get_bool ("repeat"));
+    m_shuffle_action->setChecked (aud_get_bool ("shuffle"));
 }
 
 void MainWindow::update_visibility ()

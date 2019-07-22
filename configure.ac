@@ -82,6 +82,7 @@ fi
 if test "x$USE_QT" = "xyes" ; then
     GENERAL_PLUGINS="$GENERAL_PLUGINS albumart-qt lyricwiki-qt playlist-manager-qt search-tool-qt song-info-qt statusicon-qt"
     GENERAL_PLUGINS="$GENERAL_PLUGINS qtui skins-qt"
+    VISUALIZATION_PLUGINS="$VISUALIZATION_PLUGINS blur_scope-qt qt-spectrum"
 fi
 
 USE_GTK_OR_QT=no
@@ -257,6 +258,13 @@ ENABLE_PLUGIN_WITH_DEP(modplug,
     INPUT,
     MODPLUG,
     libmodplug)
+
+ENABLE_PLUGIN_WITH_DEP(openmpt,
+    libopenmpt,
+    auto,
+    INPUT,
+    OPENMPT,
+    libopenmpt >= 0.2)
 
 ENABLE_PLUGIN_WITH_DEP(sid,
     Commodore 64 audio,
@@ -718,6 +726,7 @@ echo "  AdLib synthesizer (adplug):             $have_adplug"
 echo "  Commodore 64 audio (sid):               $have_sid"
 echo "  Game Music Emu (spc, nsf, gbs, etc.):   $have_console"
 echo "  ModPlug:                                $have_modplug"
+echo "  OpenMPT:                                $have_openmpt"
 echo "  Nintendo DS audio (xsf):                yes"
 echo "  PlayStation audio (psf/psf2):           yes"
 echo "  Vortex Tracker (vtx):                   yes"
@@ -808,11 +817,13 @@ if test "x$USE_QT" = "xyes" ; then
     echo "  Qt Interface:                           yes"
     echo "  Winamp Classic Interface:               yes"
     echo "  Album Art:                              yes"
+    echo "  Blur Scope:                             yes"
     echo "  LyricWiki viewer:                       yes"
     echo "  OpenGL Spectrum Analyzer:               $have_qtglspectrum"
     echo "  Playlist Manager:                       yes"
     echo "  Search Tool:                            yes"
     echo "  Song Info:                              yes"
+    echo "  Spectrum Analyzer (2D):                 yes"
     echo "  Status Icon:                            yes"
     echo
 fi
