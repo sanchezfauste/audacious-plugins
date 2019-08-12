@@ -29,9 +29,11 @@
 #include <libaudcore/plugin.h>
 #include <libaudcore/preferences.h>
 #include <libaudcore/runtime.h>
+#include <libaudcore/drct.h>
 #include <libaudgui/libaudgui.h>
 #include <libaudgui/libaudgui-gtk.h>
 #include <stdio.h>
+#include "truepeakdsp.h"
 
 #define MAX_CHANNELS 11
 #define DB_RANGE 96
@@ -98,6 +100,10 @@ static float channels_db_level[MAX_CHANNELS];
 static float channels_peaks[MAX_CHANNELS];
 static gint64 last_peak_times[MAX_CHANNELS]; // Time elapsed since peak was set
 static gint64 last_render_time = 0;
+static int current_samplerate = 44100;
+static int current_bitrate = 0;
+static int current_channels = 0;
+static TruePeakdsp *meters[MAX_CHANNELS];
 
 static float fclamp(float x, float low, float high)
 {
@@ -136,16 +142,7 @@ static float get_db_factor(float db)
 
 static float get_height_from_db(float db)
 {
-    
-
     return get_db_factor(db) * height;
-
-    //return (DB_RANGE + db) * ((float) height / DB_RANGE);
-    if (db >= -20.0) {
-        return (height / 2) + (20 + db) * ((float) height / 40);
-    } else {
-        return (DB_RANGE + db) * ((float) height / 2 / (DB_RANGE - 20));
-    }
 }
 
 static float get_y_from_db(float db)
@@ -155,6 +152,16 @@ static float get_y_from_db(float db)
 
 void VUMeter::render_multi_pcm (const float * pcm, int channels)
 {
+    int samplerate;
+    aud_drct_get_info (current_bitrate, samplerate, current_channels);
+    if (samplerate != current_samplerate) {
+        current_samplerate = samplerate;
+        for (int i = 0; i < MAX_CHANNELS; i += 1)
+        {
+            meters[i]->set_fsamp(current_samplerate);
+        }
+    }
+    
     gint64 current_time = g_get_monotonic_time();
     gint64 elapsed_render_time = current_time - last_render_time;
     last_render_time = current_time;
@@ -162,6 +169,7 @@ void VUMeter::render_multi_pcm (const float * pcm, int channels)
     bands = channels + 2;
     float falloff = aud_get_double ("vumeter", "falloff") / 1000000.0;
     gint64 peak_hold_time = aud_get_double ("vumeter", "peak_hold_time") * 1000000;
+    float buffer[channels][512];
 
     float peaks[channels];
     for (int channel = 0; channel < channels; channel++)
@@ -169,27 +177,33 @@ void VUMeter::render_multi_pcm (const float * pcm, int channels)
         peaks[channel] = fabsf(pcm[channel]);
     }
 
-    for (int i = 0; i < 512 * channels;)
+    for (int i = 0, j = 0; i < 512 * channels; j += 1)
     {
         for (int channel = 0; channel < channels; channel++)
         {
+            buffer[channel][j] = pcm[i];
             peaks[channel] = fmaxf(peaks[channel], fabsf(pcm[i++]));
         }
     }
 
     for (int i = 0; i < channels && i < MAX_CHANNELS; i ++)
     {
+        float m, p;
+        meters[i]->process(buffer[i], 512);
+        meters[i]->read(m, p);
+        printf("c:%i, m: %f, p: %f\n", i, 20 * log10f (m), 20 * log10f (p));
+
         float n = peaks[i];
 
-        float db = 20 * log10f(n);
-        db = get_db_on_range(db);
+        float db = 20 * log10f(m);
+        channels_db_level[i] = get_db_on_range(db);
 
-        channels_db_level[i] = get_db_on_range(channels_db_level[i] - elapsed_render_time * falloff);
+        /*channels_db_level[i] = get_db_on_range(channels_db_level[i] - elapsed_render_time * falloff);
 
         if (db > channels_db_level[i])
         {
             channels_db_level[i] = db;
-        }
+        }*/
         gint64 elapsed_peak_time = current_time - last_peak_times[i];
         if (db > channels_peaks[i] || elapsed_peak_time > peak_hold_time) {
             channels_peaks[i] = db;
@@ -215,6 +229,11 @@ static void initialize_variables()
 bool VUMeter::init ()
 {
     initialize_variables();
+    for (int i = 0; i < MAX_CHANNELS; i += 1)
+    {
+        meters[i] = new TruePeakdsp();
+        meters[i]->init(current_samplerate);
+    }
 
     aud_config_set_defaults ("vumeter", prefs_defaults);
     return true;
