@@ -24,42 +24,36 @@
 #include <libaudcore/plugin.h>
 #include <libaudcore/preferences.h>
 #include <libaudcore/visualizer.h>
-#include <QElapsedTimer>
 
 class VUMeterQt : public VisPlugin
 {
 
 public:
-    static const int max_channels = 20;
-    static const int db_range = 96;
-    static const char about[];
-    static const PreferencesWidget widgets[];
-    static const PluginPreferences prefs;
-    static const char * const prefs_defaults[];
+	static const int max_channels = 20;
+	static const int db_range = 96;
+	static const char about[];
+	static const PreferencesWidget widgets[];
+	static const PluginPreferences prefs;
+	static const char * const prefs_defaults[];
 
-    static constexpr PluginInfo info = {
-        N_("VU Meter Qt"),
-        PACKAGE,
-        about,
-        & prefs,
-        PluginQtOnly
-    };
+	static constexpr PluginInfo info = {
+		N_("VU Meter"),
+		PACKAGE,
+		about,
+		& prefs,
+		PluginQtOnly
+	};
 
-    constexpr VUMeterQt () : VisPlugin (info, Visualizer::MultiPCM) {}
+	constexpr VUMeterQt () : VisPlugin (info, Visualizer::MultiPCM) {}
 
-    bool init ();
+	bool init ();
 
-    void * get_qt_widget ();
+	void * get_qt_widget ();
 
-    void clear ();
-    void render_multi_pcm (const float * pcm, int channels);
-    static void toggle_display_legend();
-
-private:
-    QElapsedTimer last_peak_times[max_channels]; // Time elapsed since peak was set
-    QElapsedTimer render_timer;
-
-    float get_db_on_range(float db);
+	void clear ();
+	void render_multi_pcm (const float * pcm, int channels);
+	static void toggle_display_legend();
+	static float get_db_on_range(float db);
 
 };
 
