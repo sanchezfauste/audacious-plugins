@@ -18,83 +18,56 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <math.h>
-
-#include <libaudcore/i18n.h>
-#include <libaudcore/interface.h>
-#include <libaudcore/runtime.h>
-#include <stdio.h>
-#include <string.h>
-
-#include "utils.h"
 #include "vumeter_qt_widget.h"
-#include "vumeter_qt.h"
 
-EXPORT VUMeterQt aud_plugin_instance;
-
-const char VUMeterQt::about[] =
- N_("VU Meter Plugin for Audacious\n"
-    "Copyright 2017-2019 Marc Sánchez Fauste");
-
-const PreferencesWidget VUMeterQt::widgets[] = {
-    WidgetLabel (N_("<b>VU Meter Settings</b>")),
-    WidgetSpin (
-        N_("Peak hold time:"),
-        WidgetFloat ("vumeter", "peak_hold_time"),
-        {0.1, 30, 0.1, N_("seconds")}
-    ),
-    WidgetSpin (
-        N_("Fall-off time:"),
-        WidgetFloat ("vumeter", "falloff"),
-        {0.1, 96, 0.1, N_("dB/second")}
-    ),
-    WidgetCheck (N_("Display legend"),
-        WidgetBool ("vumeter", "display_legend", toggle_display_legend)),
-};
-
-const PluginPreferences VUMeterQt::prefs = {{widgets}};
-
-const char * const VUMeterQt::prefs_defaults[] = {
-    "peak_hold_time", "1.6",
-    "falloff", "13.3",
-    "display_legend", "TRUE",
-    nullptr
-};
+#include <math.h>
+#include <libaudcore/runtime.h>
 
 const QColor VUMeterQtWidget::backgroundColor = QColor(16, 16, 16, 255);
 const QColor VUMeterQtWidget::text_color = QColor(255, 255, 255);
 const QColor VUMeterQtWidget::db_line_color = QColor(120, 120, 120);
 const float VUMeterQtWidget::legend_line_width = 1.0f;
+const int VUMeterQtWidget::redraw_interval = 25; // ms
 
-static VUMeterQtWidget * spect_widget = nullptr;
-static int nchannels = 2;
-static float channels_db_level[VUMeterQt::max_channels];
-static float channels_peaks[VUMeterQt::max_channels];
-
-float VUMeterQt::get_db_on_range(float db)
+float VUMeterQtWidget::get_db_on_range(float db)
 {
-    return fclamp(db, -VUMeterQt::db_range, 0);
+    return aud::clamp<float>(db, -db_range, 0);
 }
 
 float VUMeterQtWidget::get_db_factor(float db)
 {
     float factor = 0.0f;
 
-    if (db < -VUMeterQt::db_range) {
+    if (db < -db_range)
+    {
         factor = 0.0f;
-    } else if (db < -60.0f) {
-        factor = (db + VUMeterQt::db_range) * 2.5f/(VUMeterQt::db_range-60);
-    } else if (db < -50.0f) {
+    }
+    else if (db < -60.0f)
+    {
+        factor = (db + db_range) * 2.5f/(db_range-60);
+    }
+    else if (db < -50.0f)
+    {
         factor = (db + 60.0f) * 0.5f + 2.5f;
-    } else if (db < -40.0f) {
+    }
+    else if (db < -40.0f)
+    {
         factor = (db + 50.0f) * 0.75f + 7.5f;
-    } else if (db < -30.0f) {
+    }
+    else if (db < -30.0f)
+    {
         factor = (db + 40.0f) * 1.5f + 15.0f;
-    } else if (db < -20.0f) {
+    }
+    else if (db < -20.0f)
+    {
         factor = (db + 30.0f) * 2.0f + 30.0f;
-    } else if (db < 0.0f) {
+    }
+    else if (db < 0.0f)
+    {
         factor = (db + 20.0f) * 2.5f + 50.0f;
-    } else {
+    }
+    else
+    {
         factor = 100.0f;
     }
 
@@ -111,12 +84,9 @@ float VUMeterQtWidget::get_y_from_db(float db)
     return vumeter_top_padding + vumeter_height - get_height_from_db(db);
 }
 
-void VUMeterQt::render_multi_pcm (const float * pcm, int channels)
+void VUMeterQtWidget::render_multi_pcm (const float * pcm, int channels)
 {
-    qint64 elapsed_render_time = render_timer.restart();
-    nchannels = fclamp(channels, 0, VUMeterQt::max_channels);
-    float falloff = aud_get_double ("vumeter", "falloff") / 1000.0;
-    qint64 peak_hold_time = aud_get_double ("vumeter", "peak_hold_time") * 1000;
+    nchannels = aud::clamp(channels, 0, max_channels);
 
     float peaks[channels];
     for (int channel = 0; channel < channels; channel++)
@@ -139,50 +109,48 @@ void VUMeterQt::render_multi_pcm (const float * pcm, int channels)
         float db = 20 * log10f(n);
         db = get_db_on_range(db);
 
-        channels_db_level[i] = get_db_on_range(channels_db_level[i] - elapsed_render_time * falloff);
-
         if (db > channels_db_level[i])
         {
             channels_db_level[i] = db;
         }
 
-        qint64 elapsed_peak_time = last_peak_times[i].elapsed();
-        if (channels_db_level[i] > channels_peaks[i] || elapsed_peak_time > peak_hold_time) {
-            channels_peaks[i] = channels_db_level[i];
-            last_peak_times[i].restart();
+        if (db > channels_peaks[i])
+        {
+            channels_peaks[i] = db;
+            last_peak_times[i].start();
         }
-
-    }
-
-    if (spect_widget) {
-        spect_widget->update();
     }
 }
 
-bool VUMeterQt::init ()
+void VUMeterQtWidget::redraw_timer_expired()
 {
-    render_timer.start();
-    for (int i = 0; i < VUMeterQt::max_channels; i++) {
+    qint64 elapsed_render_time = redraw_elapsed_timer.restart();
+    float falloff = aud_get_double ("vumeter", "falloff") / 1000.0;
+    qint64 peak_hold_time = aud_get_double ("vumeter", "peak_hold_time") * 1000;
+
+    for (int i = 0; i < nchannels; i++)
+    {
+        float decay_amount = elapsed_render_time * falloff;
+        channels_db_level[i] = get_db_on_range(channels_db_level[i] - decay_amount);
+
+        qint64 elapsed_peak_time = last_peak_times[i].elapsed();
+        if (channels_db_level[i] > channels_peaks[i] || elapsed_peak_time > peak_hold_time)
+        {
+            channels_peaks[i] = channels_db_level[i];
+            last_peak_times[i].start();
+        }
+    }
+
+    update();
+}
+
+void VUMeterQtWidget::reset()
+{
+    for (int i = 0; i < max_channels; i++)
+    {
         last_peak_times[i].start();
-        channels_db_level[i] = -VUMeterQt::db_range;
-        channels_peaks[i] = -VUMeterQt::db_range;
-    }
-
-    aud_config_set_defaults ("vumeter", prefs_defaults);
-    return true;
-}
-
-void VUMeterQt::clear ()
-{
-    render_timer.restart();
-    for (int i = 0; i < VUMeterQt::max_channels; i++) {
-        last_peak_times[i].restart();
-        channels_db_level[i] = -VUMeterQt::db_range;
-        channels_peaks[i] = -VUMeterQt::db_range;
-    }
-
-    if (spect_widget) {
-        spect_widget->update();
+        channels_db_level[i] = -db_range;
+        channels_peaks[i] = -db_range;
     }
 }
 
@@ -219,7 +187,7 @@ void VUMeterQtWidget::draw_vu_legend(QPainter & p)
     draw_vu_legend_db(p, -40, "-40");
     draw_vu_legend_db(p, -50, "-50");
     draw_vu_legend_db(p, -60, "-60");
-    draw_vu_legend_db(p, -VUMeterQt::db_range, "-inf");
+    draw_vu_legend_db(p, -db_range, "-inf");
 
     pen.setColor(db_line_color);
     p.setPen(pen);
@@ -240,18 +208,21 @@ void VUMeterQtWidget::draw_vu_legend(QPainter & p)
             i -= 1;
         }
     }
-    draw_vu_legend_line(p, -VUMeterQt::db_range);
+    draw_vu_legend_line(p, -db_range);
 }
 
 void VUMeterQtWidget::draw_vu_legend_line(QPainter &p, float db, float line_width_factor)
 {
     float y = get_y_from_db(db);
-    if (db > -VUMeterQt::db_range) {
+    if (db > -db_range)
+    {
         y += (legend_line_width / 2.0f);
-    } else {
+    }
+    else
+    {
         y -= (legend_line_width / 2.0f);
     }
-    float line_width = fclamp(legend_width * 0.25f, 1, 8);
+    float line_width = aud::clamp<float>(legend_width * 0.25f, 1, 8);
     p.drawLine(
         QPointF(legend_width - line_width * line_width_factor - (legend_line_width / 2.0f), y),
         QPointF(legend_width - (legend_line_width / 2.0f), y)
@@ -267,7 +238,7 @@ void VUMeterQtWidget::draw_vu_legend_db(QPainter &p, float db, const char *text)
     QFontMetricsF fm(p.font());
     QSizeF text_size = fm.size(0, text);
     float y = get_y_from_db(db);
-    float padding = fclamp(legend_width * 0.25f, 1, 8) * 1.5f;
+    float padding = aud::clamp<float>(legend_width * 0.25f, 1, 8) * 1.5f;
     p.drawText(QPointF(legend_width - text_size.width() - padding, y + (text_size.height()/4.0f)), text);
     p.drawText(QPointF(width() - legend_width + padding, y + (text_size.height()/4.0f)), text);
 }
@@ -287,13 +258,16 @@ void VUMeterQtWidget::draw_visualizer_peaks(QPainter &p)
     p.setPen(pen);
 
     QFontMetricsF fm(p.font());
-    char text[10];
     for (int i = 0; i < nchannels; i++)
     {
-        format_db(text, channels_peaks[i]);
+        QString text = format_db(channels_peaks[i]);
         QSizeF text_size = fm.size(0, text);
-        p.drawText(QPointF(legend_width + bar_width*(i+0.5f) - text_size.width()/2.0f,
-            vumeter_top_padding/2.0f + (text_size.height()/4.0f)), text
+        p.drawText(
+            QPointF(
+                legend_width + bar_width*(i+0.5f) - text_size.width()/2.0f,
+                vumeter_top_padding/2.0f + (text_size.height()/4.0f)
+            ),
+            text
         );
     }
 }
@@ -321,7 +295,7 @@ void VUMeterQtWidget::draw_visualizer(QPainter & p)
             vumeter_pattern
         );
 
-        if (channels_peaks[i] > -VUMeterQt::db_range)
+        if (channels_peaks[i] > -db_range)
         {
             p.fillRect (
                 QRectF(x, get_y_from_db(channels_peaks[i]), bar_width, 1),
@@ -331,18 +305,19 @@ void VUMeterQtWidget::draw_visualizer(QPainter & p)
     }
 }
 
-void VUMeterQtWidget::format_db(char *buf, const float val) {
+QString VUMeterQtWidget::format_db(const float val)
+{
     if (val > -10)
     {
-        sprintf(buf, "%+.1f", val);
+        return QString::number(val, 'f', 1);
     }
-    else if (val > -VUMeterQt::db_range)
+    else if (val > -db_range)
     {
-        sprintf(buf, "%.0f ", val);
+        return QString::number(val, 'f', 0);
     }
     else
     {
-        sprintf(buf, "-inf");
+        return QString("-inf");
     }
 }
 
@@ -353,14 +328,17 @@ float VUMeterQtWidget::get_bar_width(int channels)
 
 void VUMeterQtWidget::update_sizes()
 {
-    if (height() > 200 && width() > 60 && aud_get_bool("vumeter", "display_legend")) {
+    if (height() > 200 && width() > 60 && aud_get_bool("vumeter", "display_legend"))
+    {
         must_draw_vu_legend = true;
         vumeter_top_padding = height() * 0.03f;
         vumeter_bottom_padding = height() * 0.015f;
         vumeter_height = height() - vumeter_top_padding - vumeter_bottom_padding;
         legend_width = width() * 0.3f;
         vumeter_width = width() - (legend_width * 2);
-    } else {
+    }
+    else
+    {
         must_draw_vu_legend = false;
         vumeter_top_padding = 0;
         vumeter_bottom_padding = 0;
@@ -372,11 +350,15 @@ void VUMeterQtWidget::update_sizes()
     background_vumeter_pattern = get_vumeter_pattern(30);
 }
 
-VUMeterQtWidget::VUMeterQtWidget (QWidget * parent) : QWidget (parent)
+VUMeterQtWidget::VUMeterQtWidget (QWidget * parent)
+    : QWidget (parent),
+    redraw_timer(new QTimer(this))
 {
+    reset();
+    connect(redraw_timer, &QTimer::timeout, this, &VUMeterQtWidget::redraw_timer_expired);
+    redraw_timer->start(redraw_interval);
+    redraw_elapsed_timer.start();
     update_sizes();
-
-    setObjectName ("VUMeterQtWidget");
 }
 
 QLinearGradient VUMeterQtWidget::get_vumeter_pattern(int alpha)
@@ -391,43 +373,22 @@ QLinearGradient VUMeterQtWidget::get_vumeter_pattern(int alpha)
     return vumeter_pattern;
 }
 
-VUMeterQtWidget::~VUMeterQtWidget ()
-{
-    spect_widget = nullptr;
-}
-
-void VUMeterQtWidget::resizeEvent (QResizeEvent * event)
+void VUMeterQtWidget::resizeEvent (QResizeEvent *)
 {
     update_sizes();
 }
 
-void VUMeterQtWidget::paintEvent (QPaintEvent * event)
+void VUMeterQtWidget::paintEvent (QPaintEvent *)
 {
     QPainter p(this);
 
     draw_background(p);
-    if (must_draw_vu_legend) {
+    if (must_draw_vu_legend)
+    {
         draw_vu_legend(p);
         draw_visualizer_peaks(p);
     }
     draw_visualizer(p);
-}
-
-void * VUMeterQt::get_qt_widget ()
-{
-    if (spect_widget) {
-        return spect_widget;
-    }
-
-    spect_widget = new VUMeterQtWidget;
-    return spect_widget;
-}
-
-void VUMeterQt::toggle_display_legend()
-{
-    if (spect_widget) {
-        spect_widget->toggle_display_legend();
-    }
 }
 
 void VUMeterQtWidget::toggle_display_legend()

@@ -1,6 +1,6 @@
 PLUGIN = vumeter-qt${PLUGIN_SUFFIX}
 
-SRCS = vumeter.cc utils.cc
+SRCS = vumeter_qt.cc vumeter_qt_widget.cc
 
 include ../../buildsys.mk
 include ../../extra.mk

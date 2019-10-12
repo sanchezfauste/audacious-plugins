@@ -31,10 +31,25 @@ subdir('stereo_plugin')
 subdir('voice_removal')
 subdir('echo_plugin')
 
+if samplerate_dep.found()
+  if get_option('resample')
+    subdir('resample')
+  endif
+
+  if get_option('speedpitch')
+    subdir('speedpitch')
+  endif
+endif
+
 
 # transport plugins
 subdir('gio')
-subdir('neon')
+if get_option('neon')
+  subdir('neon')
+endif
+if get_option('mms')
+  subdir('mms')
+endif
 
 
 # playlist (container) plugins
@@ -45,6 +60,9 @@ subdir('pls')
 if xml_dep.found()
   subdir('asx3')
   subdir('xspf')
+endif
+if get_option('cue')
+  subdir('cue')
 endif
 
 
@@ -71,16 +89,85 @@ endif
 
 
 # output plugins
-subdir('pulse')
-if host_machine.system() == 'linux'
+if get_option('pulse')
+  subdir('pulse')
+endif
+if host_machine.system() == 'linux' and get_option('alsa')
   subdir('alsa')
 endif
 
+
+# general plugins
+if cdaudio_enabled
+  subdir('cd-menu-items')
+endif
+
+if get_option('songchange')
+  subdir('songchange')
+endif
+
+if get_option('scrobbler2') and xml_dep.found()
+  subdir('scrobbler2')
+endif
+
+if get_option('dbus') and get_option('mpris2')
+  subdir('mpris2')
+endif
+
+
 # input plugins
-subdir('mpg123')
+if get_option('mpg123')
+  subdir('mpg123')
+endif
+
 if get_option('ffaudio') in ['libav', 'ffmpeg']
   subdir('ffaudio')
 endif
+
+if get_option('adplug')
+  subdir('adplug')
+endif
+
+if get_option('flac')
+  subdir('flac')
+endif
+
+if get_option('vorbis')
+  subdir('vorbis')
+endif
+
+if get_option('faad')
+  subdir('aac')
+endif
+
+if get_option('modplug')
+  subdir('modplug')
+endif
+
+if get_option('openmpt')
+  subdir('openmpt')
+endif
+
+if get_option('wavpack')
+  subdir('wavpack')
+endif
+
+if get_option('sndfile')
+  subdir('sndfile')
+endif
+
+if cdaudio_enabled
+  subdir('cdaudio')
+endif
+
+if get_option('amidiplug')
+  subdir('amidiplug')
+endif
+
+if get_option('sid')
+  subdir('sid')
+endif
+
 
 # config.h stuff
 configure_file(input: 'config.h.meson',
