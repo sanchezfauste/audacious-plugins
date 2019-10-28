@@ -28,6 +28,7 @@
 #include <libaudcore/i18n.h>
 #include <libaudcore/interface.h>
 #include <libaudcore/plugin.h>
+#include <libaudqt/libaudqt.h>
 
 #define MAX_BANDS   (256)
 #define VIS_DELAY 2 /* delay before falloff in frames */
@@ -37,12 +38,6 @@ static float xscale[MAX_BANDS + 1];
 static int bands;
 static int bars[MAX_BANDS + 1];
 static int delay[MAX_BANDS + 1];
-
-static void calculate_xscale ()
-{
-    for (int i = 0; i <= bands; i ++)
-        xscale[i] = powf (256, (float) i / bands) - 0.5f;
-}
 
 class SpectrumWidget : public QWidget
 {
@@ -57,7 +52,6 @@ protected:
 private:
     void paint_background (QPainter &);
     void paint_spectrum (QPainter &);
-    QColor get_color (int i);
 };
 
 static SpectrumWidget * spect_widget = nullptr;
@@ -72,22 +66,6 @@ SpectrumWidget::~SpectrumWidget ()
     spect_widget = nullptr;
 }
 
-QColor SpectrumWidget::get_color (int i)
-{
-    auto & highlight = palette ().color (QPalette::Highlight);
-    qreal h, s, v;
-
-    highlight.getHsvF (& h, & s, & v);
-
-    if (s < 0.1) /* monochrome theme? use blue instead */
-        h = 4.6;
-
-    s = 1 - 0.9 * i / (bands - 1);
-    v = 0.75 + 0.25 * i / (bands - 1);
-
-    return QColor::fromHsvF (h, s, v);
-}
-
 void SpectrumWidget::paint_background (QPainter & p)
 {
     auto & base = palette ().color (QPalette::Window);
@@ -99,7 +77,7 @@ void SpectrumWidget::paint_spectrum (QPainter & p)
     for (int i = 0; i < bands; i++)
     {
         int x = ((width () / bands) * i) + 2;
-        auto color = get_color (i);
+        auto color = audqt::vis_bar_color (palette ().color (QPalette::Highlight), i, bands);
 
         p.fillRect (x + 1, height () - (bars[i] * height () / 40),
          (width () / bands) - 1, (bars[i] * height () / 40), color);
@@ -110,7 +88,7 @@ void SpectrumWidget::resizeEvent (QResizeEvent * event)
 {
     bands = width () / 10;
     bands = aud::clamp(bands, 12, MAX_BANDS);
-    calculate_xscale ();
+    Visualizer::compute_log_xscale (xscale, bands);
     update ();
 }
 
@@ -150,28 +128,8 @@ void QtSpectrum::render_freq (const float * freq)
 
     for (int i = 0; i < bands; i ++)
     {
-        int a = ceilf (xscale[i]);
-        int b = floorf (xscale[i + 1]);
-        float n = 0;
-
-        if (b < a)
-            n += freq[b] * (xscale[i + 1] - xscale[i]);
-        else
-        {
-            if (a > 0)
-                n += freq[a - 1] * (a - xscale[i]);
-            for (; a < b; a ++)
-                n += freq[a];
-            if (b < 256)
-                n += freq[b] * (xscale[i + 1] - b);
-        }
-
-        /* fudge factor to make the graph have the same overall height as a
-           12-band one no matter how many bands there are */
-        n *= (float) bands / 12;
-
         /* 40 dB range */
-        int x = 40 + 20 * log10f (n);
+        int x = 40 + compute_freq_band (freq, xscale, i, bands);
         x = aud::clamp (x, 0, 40);
 
         bars[i] -= aud::max (0, VIS_FALLOFF - delay[i]);
