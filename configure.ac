@@ -5,7 +5,7 @@ dnl ***
 dnl Initialize
 dnl ==========
 AC_PREREQ([2.59])
-AC_INIT([audacious-plugins], [4.0-devel])
+AC_INIT([audacious-plugins], [4.0-beta1])
 AC_COPYRIGHT([Copyright (C) 2001-2019 Audacious developers and others])
 
 AC_DEFINE_UNQUOTED([PACKAGE], "$PACKAGE_NAME", [Name of package])
@@ -493,6 +493,13 @@ ENABLE_PLUGIN_WITH_DEP(qtaudio,
     QTMULTIMEDIA,
     Qt5Multimedia)
 
+ENABLE_PLUGIN_WITH_DEP(streamtuner,
+    Stream tuner,
+    auto,
+    GENERAL,
+    QTNETWORK,
+    Qt5Network)
+
 test_qtglspectrum () {
     PKG_CHECK_MODULES(QTOPENGL, Qt5OpenGL, [
         QTOPENGL_CFLAGS="$QTOPENGL_CFLAGS -fPIC"
@@ -825,6 +832,7 @@ if test "x$USE_QT" = "xyes" ; then
     echo "  Song Info:                              yes"
     echo "  Spectrum Analyzer (2D):                 yes"
     echo "  Status Icon:                            yes"
+    echo "  Stream Tuner:                           $have_streamtuner"
     echo "  VU Meter:                               yes"
     echo
 fi

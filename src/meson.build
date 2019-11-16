@@ -80,20 +80,16 @@ if get_option('qt')
   subdir('search-tool-qt')
   subdir('song-info-qt')
   subdir('statusicon-qt')
+  subdir('streamtuner')
 
   subdir('delete-files')
   subdir('skins-data')
 
   subdir('qtaudio')
-endif
 
-
-# output plugins
-if get_option('pulse')
-  subdir('pulse')
-endif
-if host_machine.system() == 'linux' and get_option('alsa')
-  subdir('alsa')
+  if get_option('vumeter')
+    subdir('vumeter-qt')
+  endif
 endif
 
 
@@ -112,6 +108,10 @@ endif
 
 if get_option('dbus') and get_option('mpris2')
   subdir('mpris2')
+endif
+
+if get_option('notify') and get_option('qt')
+  subdir('notify')
 endif
 
 
@@ -166,6 +166,18 @@ endif
 
 if get_option('sid')
   subdir('sid')
+endif
+
+
+# output plugins
+if get_option('pulse')
+  subdir('pulse')
+endif
+if host_machine.system() == 'linux' and get_option('alsa')
+  subdir('alsa')
+endif
+if get_option('filewriter')
+  subdir('filewriter')
 endif
 
 
