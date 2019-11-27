@@ -161,11 +161,6 @@ MainWindow::MainWindow()
             N_("Stop After This Song"),
             [](bool on) { aud_set_bool("stop_after_current_song", on); },
             &m_stop_after_action),
-        ToolBarAction(
-            "media-playback-stop", N_("Stop After Each Song"),
-            N_("Stop After Each Song"),
-            [](bool on) { aud_set_bool("stop_after_each_song", on); },
-            &m_stop_after_each_action),
         ToolBarAction("media-skip-forward", N_("Next"), N_("Next"),
                       aud_drct_pl_next),
         ToolBarAction(
@@ -323,13 +318,10 @@ void MainWindow::update_toggles()
     if (m_search_tool)
         m_search_action->setChecked(aud_plugin_get_enabled(m_search_tool));
 
-    bool stop_after_each = aud_get_bool("stop_after_each_song");
     bool stop_after = aud_get_bool("stop_after_current_song");
-    m_stop_action->setVisible(!stop_after && !stop_after_each);
-    m_stop_after_action->setVisible(stop_after && !stop_after_each);
-    m_stop_after_action->setChecked(stop_after && !stop_after_each);
-    m_stop_after_each_action->setVisible(stop_after_each);
-    m_stop_after_each_action->setChecked(stop_after_each);
+    m_stop_action->setVisible(!stop_after);
+    m_stop_after_action->setVisible(stop_after);
+    m_stop_after_action->setChecked(stop_after);
 
     m_record_action->setVisible(aud_drct_get_record_enabled());
     m_record_action->setChecked(aud_get_bool("record"));
