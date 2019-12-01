@@ -24,32 +24,52 @@
 #include <libaudcore/runtime.h>
 
 #include <QMouseEvent>
+#include <QProxyStyle>
 #include <QStyle>
 
-MyLabel::MyLabel (QWidget * parent) : QLabel (parent) {}
-MyLabel::~MyLabel () {}
+TimeSliderLabel::TimeSliderLabel (QWidget * parent) : QLabel (parent) {}
+TimeSliderLabel::~TimeSliderLabel () {}
 
-void MyLabel::mouseDoubleClickEvent (QMouseEvent * event)
+void TimeSliderLabel::mouseDoubleClickEvent (QMouseEvent * event)
 {
-    aud_toggle_bool ("qtui", "show_remaining_time");
-    hook_call ("qtui toggle remaining time", nullptr);
-
-    event->accept ();
+    if (event->button () == Qt::LeftButton)
+    {
+        aud_toggle_bool ("qtui", "show_remaining_time");
+        hook_call ("qtui toggle remaining time", nullptr);
+        event->accept ();
+    }
 
     QLabel::mouseDoubleClickEvent (event);
 }
 
+class TimeSliderStyle : public QProxyStyle
+{
+public:
+    int styleHint (QStyle::StyleHint hint, const QStyleOption * option = nullptr,
+     const QWidget * widget = nullptr, QStyleHintReturn * returnData = nullptr) const
+    {
+        int styleHint = QProxyStyle::styleHint (hint, option, widget, returnData);
+
+        if (hint == QStyle::SH_Slider_AbsoluteSetButtons)
+            styleHint |= Qt::LeftButton;
+
+        return styleHint;
+    }
+};
+
 TimeSlider::TimeSlider (QWidget * parent) :
     QSlider (Qt::Horizontal, parent),
-    m_label (new MyLabel (parent))
+    m_label (new TimeSliderLabel (parent))
 {
     setFocusPolicy (Qt::NoFocus);
     setSizePolicy (QSizePolicy::Expanding, QSizePolicy::Fixed);
+    setStyle (new TimeSliderStyle ());
 
     m_label->setContentsMargins (4, 0, 4, 0);
     m_label->setSizePolicy (QSizePolicy::Fixed, QSizePolicy::MinimumExpanding);
 
     connect (this, & QSlider::sliderMoved, this, & TimeSlider::moved);
+    connect (this, & QSlider::sliderPressed, this, & TimeSlider::pressed);
     connect (this, & QSlider::sliderReleased, this, & TimeSlider::released);
 
     start_stop ();
@@ -115,18 +135,12 @@ void TimeSlider::moved (int value)
     set_label (value, aud_drct_get_length ());
 }
 
+void TimeSlider::pressed ()
+{
+    set_label (value (), aud_drct_get_length ());
+}
+
 void TimeSlider::released ()
 {
     aud_drct_seek (value ());
-}
-
-void TimeSlider::mousePressEvent (QMouseEvent * event)
-{
-    if (event->button () == Qt::LeftButton)
-    {
-        setValue (QStyle::sliderValueFromPosition (minimum (), maximum (), event->x (), width ()));
-        event->accept ();
-    }
-
-    QSlider::mousePressEvent (event);
 }
