@@ -1,6 +1,6 @@
 /*
- * settings.h
- * Copyright 2015 Eugene Paskevich
+ * html-delegate.h
+ * Copyright 2018 John Lindgren and René J.V. Bertin
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -17,23 +17,19 @@
  * the use of this software.
  */
 
-#ifndef SETTINGS_H
-#define SETTINGS_H
+#ifndef HTMLDELEGATE_H
+#define HTMLDELEGATE_H
 
-#include <libaudcore/templates.h>
+#include <QStyledItemDelegate>
 
-#define DEFAULT_COLUMNS "playing title artist album queued length"
-
-enum PlaylistTabVisibility
+// Allow rich text in QTreeView entries
+class HtmlDelegate : public QStyledItemDelegate
 {
-    Always,
-    AutoHide,
-    Never
+protected:
+    void paint (QPainter * painter, const QStyleOptionViewItem & option,
+                const QModelIndex & index) const override;
+    QSize sizeHint (const QStyleOptionViewItem & option,
+                    const QModelIndex & index) const override;
 };
 
-struct PluginPreferences;
-extern const PluginPreferences qtui_prefs;
-
-extern const char * const qtui_defaults[];
-
-#endif
+#endif // HTMLDELEGATE_H

@@ -50,8 +50,8 @@ if test $HAVE_DARWIN = yes ; then
      [with_system_libxml2=yes])
 
     if test $with_system_libxml2 = yes ; then
-        XML_LIBS="-lxml2"
-        XML_CFLAGS="-I/usr/include/libxml2"
+        XML_LIBS=$(xml2-config --libs)
+        XML_CFLAGS=$(xml2-config --cflags)
         AC_SUBST(XML_LIBS)
         AC_SUBST(XML_CFLAGS)
     else
@@ -188,6 +188,16 @@ ENABLE_PLUGIN_WITH_DEP(adplug,
     INPUT,
     ADLIB,
     adplug)
+
+if test $have_adplug = yes ; then
+    AC_LANG_PUSH([C++])
+    CPPFLAGS_adplug_backup="${CPPFLAGS}"
+    CPPFLAGS="${CPPFLAGS} ${ADLIB_CFLAGS}"
+    AC_CHECK_HEADERS([adplug/nemuopl.h adplug/wemuopl.h adplug/kemuopl.h], [],
+        [], [#include <adplug/adplug.h>])
+    CPPFLAGS="${CPPFLAGS_adplug_backup}"
+    AC_LANG_POP([C++])
+fi
 
 ENABLE_PLUGIN_WITH_DEP(cdaudio,
     audio CD support,
