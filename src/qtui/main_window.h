@@ -120,8 +120,8 @@ private:
         hook14{"qtui toggle statusbar", this, &MainWindow::update_visibility},
         hook15{"qtui show search tool", this, &MainWindow::show_search_tool},
         hook16{"qtui show playlist manager", this,
-               &MainWindow::show_playlist_manager};
-        hook17{"set stop_after_each_song", this, & MainWindow::update_toggles};
+               &MainWindow::show_playlist_manager},
+        hook17{"set stop_after_each_song", this, &MainWindow::update_toggles};
 
     const HookReceiver<MainWindow, PluginHandle *> plugin_hook1{
         "dock plugin enabled", this, &MainWindow::add_dock_plugin_cb},
