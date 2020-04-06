@@ -21,6 +21,7 @@
 #include <QKeyEvent>
 #include <QMenu>
 #include <QSortFilterProxyModel>
+#include <QProxyStyle>
 
 #include <libaudcore/audstrings.h>
 #include <libaudcore/drct.h>
@@ -58,6 +59,8 @@ PlaylistWidget::PlaylistWidget(QWidget * parent, Playlist playlist)
     setSelectionMode(ExtendedSelection);
     setDragDropMode(DragDrop);
     setMouseTracking(true);
+
+    connect(this, &QTreeView::activated, this, &PlaylistWidget::activate);
 
     updateSettings();
     header->updateColumns();
