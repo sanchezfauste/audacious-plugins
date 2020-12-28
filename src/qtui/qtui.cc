@@ -18,6 +18,7 @@
  */
 
 #include <QApplication>
+#include <QPointer>
 
 #include <libaudcore/i18n.h>
 #include <libaudcore/plugin.h>
@@ -29,11 +30,10 @@
 #include "main_window.h"
 #include "settings.h"
 
+static QPointer<MainWindow> window;
+
 class QtUI : public audqt::QtIfacePlugin
 {
-private:
-    MainWindow * window = nullptr;
-
 public:
     constexpr QtUI()
         : audqt::QtIfacePlugin(
@@ -52,14 +52,16 @@ public:
     void cleanup()
     {
         delete window;
-        window = nullptr;
         audqt::cleanup();
     }
 
-    void run() { audqt::run(); }
+    void run() { QApplication::exec(); }
 
     void show(bool show)
     {
+        if (!window)
+            return;
+
         window->setVisible(show);
 
         if (show)
@@ -69,7 +71,11 @@ public:
         }
     }
 
-    void quit() { audqt::quit(); }
+    void quit()
+    {
+        QObject::connect(window.data(), &QObject::destroyed, QApplication::quit);
+        window->deleteLater();
+    }
 };
 
 EXPORT QtUI aud_plugin_instance;
