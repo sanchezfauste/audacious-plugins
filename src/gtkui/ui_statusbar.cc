@@ -122,7 +122,7 @@ static void stop_after_song_toggled (void *, void * label)
 
 static void stop_after_each_song_toggled (void *, void * label)
 {
-    if (aud_get_bool (nullptr, "stop_after_each_song"))
+    if (aud_get_bool ("stop_after_each_song"))
         gtk_label_set_text ((GtkLabel *) label, _("Stopping after each song."));
 
     clear_timeout.start (1000, std::bind (clear_message, label));

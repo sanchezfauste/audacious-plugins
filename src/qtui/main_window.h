@@ -124,8 +124,9 @@ private:
         hook16{"qtui show playback history", this,
                &MainWindow::show_playback_history},
         hook17{"qtui show playlist manager", this,
-             &MainWindow::show_playlist_manager},
-         hook18{"set stop_after_each_song", this, &MainWindow::update_toggles};
+               &MainWindow::show_playlist_manager},
+        hook18{"set stop_after_each_song", this,
+               &MainWindow::update_toggles};
 };
 
 #endif

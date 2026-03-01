@@ -271,7 +271,7 @@ bool handle_keyevent(EVENT event)
 
     if (event == EVENT_TOGGLE_STOP_EACH)
     {
-        aud_toggle_bool (nullptr, "stop_after_each_song");
+        aud_toggle_bool("stop_after_each_song");
         return true;
     }
 
