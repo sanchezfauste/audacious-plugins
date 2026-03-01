@@ -17,8 +17,6 @@
  * the use of this software.
  */
 
-#include <glib.h>
-
 #include <QApplication>
 #include <QBoxLayout>
 #include <QContextMenuEvent>
@@ -30,6 +28,7 @@
 #include <QMenu>
 #include <QPointer>
 #include <QPushButton>
+#include <QStandardPaths>
 #include <QTreeView>
 
 #include <libaudcore/i18n.h>
@@ -64,9 +63,9 @@ public:
 
     constexpr SearchToolQt () : GeneralPlugin (info, false) {}
 
-    bool init ();
-    void * get_qt_widget ();
-    int take_message (const char * code, const void *, int);
+    bool init () override;
+    void * get_qt_widget () override;
+    int take_message (const char * code, const void *, int) override;
 };
 
 EXPORT SearchToolQt aud_plugin_instance;
@@ -77,7 +76,7 @@ public:
     QTreeView * list = nullptr;
 
 protected:
-    void keyPressEvent (QKeyEvent * event)
+    void keyPressEvent (QKeyEvent * event) override
     {
         auto CtrlShiftAlt = Qt::ShiftModifier | Qt::ControlModifier | Qt::AltModifier;
         if (list && ! (event->modifiers () & CtrlShiftAlt) && event->key () == Qt::Key_Down)
@@ -96,7 +95,7 @@ public:
     QWidget * entry = nullptr;
 
 protected:
-    void keyPressEvent (QKeyEvent * event)
+    void keyPressEvent (QKeyEvent * event) override
     {
         auto CtrlShiftAlt = Qt::ShiftModifier | Qt::ControlModifier | Qt::AltModifier;
         if (entry && ! (event->modifiers () & CtrlShiftAlt) &&
@@ -182,18 +181,19 @@ static String get_uri ()
     if (path1[0])
         return strstr (path1, "://") ? path1 : to_uri (path1);
 
-    StringBuf path2 = filename_build ({g_get_home_dir (), "Music"});
-    if (g_file_test (path2, G_FILE_TEST_EXISTS))
-        return to_uri (path2);
+    QStringList locations = QStandardPaths::standardLocations (QStandardPaths::MusicLocation);
+    QString path2 = locations.value (0, QString ());
+    if (! path2.isEmpty () && QFile::exists (path2))
+        return to_uri (path2.toUtf8 ().constData ());
 
-    return to_uri (g_get_home_dir ());
+    return to_uri (QDir::homePath ().toUtf8 ().constData ());
 }
 
 SearchWidget::SearchWidget () :
     m_help_label (_("To import your music library into Audacious, "
      "choose a folder and then click the \"refresh\" icon.")),
     m_wait_label (_("Please wait ...")),
-    m_refresh_btn (audqt::get_icon ("view-refresh"), QString ()),
+    m_refresh_btn (QIcon::fromTheme ("view-refresh"), QString ()),
     m_file_entry (audqt::file_entry_new (this, _("Choose Folder"),
      QFileDialog::Directory, QFileDialog::AcceptOpen))
 {
@@ -495,11 +495,11 @@ void SearchWidget::show_context_menu (const QPoint & global_pos)
 {
     auto menu = new QMenu (this);
 
-    auto play_act = new QAction (audqt::get_icon ("media-playback-start"),
+    auto play_act = new QAction (QIcon::fromTheme ("media-playback-start"),
                                  audqt::translate_str (N_("_Play")), menu);
-    auto create_act = new QAction (audqt::get_icon ("document-new"),
+    auto create_act = new QAction (QIcon::fromTheme ("document-new"),
                                    audqt::translate_str (N_("_Create Playlist")), menu);
-    auto add_act = new QAction (audqt::get_icon ("list-add"),
+    auto add_act = new QAction (QIcon::fromTheme ("list-add"),
                                 audqt::translate_str (N_("_Add to Playlist")), menu);
 
     QObject::connect (play_act, & QAction::triggered, this, & SearchWidget::action_play);

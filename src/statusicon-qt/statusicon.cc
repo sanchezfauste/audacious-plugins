@@ -17,13 +17,13 @@
  * the use of this software.
  */
 
-#include <libaudcore/i18n.h>
 #include <libaudcore/drct.h>
 #include <libaudcore/hook.h>
-#include <libaudcore/plugin.h>
-#include <libaudcore/runtime.h>
+#include <libaudcore/i18n.h>
 #include <libaudcore/interface.h>
+#include <libaudcore/plugin.h>
 #include <libaudcore/preferences.h>
+#include <libaudcore/runtime.h>
 
 #include <libaudqt/menu.h>
 
@@ -32,7 +32,8 @@
 #include <QSystemTrayIcon>
 #include <QWheelEvent>
 
-class StatusIcon : public GeneralPlugin {
+class StatusIcon : public GeneralPlugin
+{
 public:
     static const char about[];
     static const char * const defaults[];
@@ -50,9 +51,11 @@ public:
 
     constexpr StatusIcon () : GeneralPlugin (info, false) {}
 
-    bool init ();
-    void cleanup ();
+    bool init () override;
+    void cleanup () override;
 
+private:
+    static void update_tooltip (void * data, void * user_data);
     static void window_closed (void * data, void * user_data);
     static void activate (QSystemTrayIcon::ActivationReason);
     static void open_files ();
@@ -74,8 +77,14 @@ enum {
     SI_CFG_SCROLL_ACTION_SKIP
 };
 
+enum {
+    SI_CFG_MIDDLE_CLICK_ACTION_PAUSE,
+    SI_CFG_MIDDLE_CLICK_ACTION_NEXT
+};
+
 const char * const StatusIcon::defaults[] = {
     "scroll_action", aud::numeric_string<SI_CFG_SCROLL_ACTION_VOLUME>::str,
+    "middle_click_action", aud::numeric_string<SI_CFG_MIDDLE_CLICK_ACTION_PAUSE>::str,
     "disable_popup", "FALSE",
     "close_to_tray", "FALSE",
     "reverse_scroll", "FALSE",
@@ -90,6 +99,13 @@ const PreferencesWidget StatusIcon::widgets[] = {
     WidgetRadio (N_("Change playing song"),
         WidgetInt ("statusicon", "scroll_action"),
         {SI_CFG_SCROLL_ACTION_SKIP}),
+    WidgetLabel (N_("<b>Middle Click Action</b>")),
+    WidgetRadio (N_("Pause/Resume playback"),
+        WidgetInt ("statusicon", "middle_click_action"),
+        {SI_CFG_MIDDLE_CLICK_ACTION_PAUSE}),
+    WidgetRadio (N_("Play next song"),
+        WidgetInt ("statusicon", "middle_click_action"),
+        {SI_CFG_MIDDLE_CLICK_ACTION_NEXT}),
     WidgetLabel (N_("<b>Other Settings</b>")),
     WidgetCheck (N_("Disable the popup window"),
         WidgetBool ("statusicon", "disable_popup")),
@@ -161,7 +177,10 @@ bool SystemTrayIcon::event (QEvent * e)
     {
     case QEvent::ToolTip:
         if (! aud_get_bool ("statusicon", "disable_popup"))
+        {
+            setToolTip (QString ()); /* prevent double tooltip */
             audqt::infopopup_show_current ();
+        }
         return true;
 
     case QEvent::Wheel:
@@ -188,6 +207,11 @@ bool StatusIcon::init ()
     tray->setContextMenu (menu);
     tray->show ();
 
+    update_tooltip (nullptr, nullptr);
+
+    hook_associate ("title change", update_tooltip, nullptr);
+    hook_associate ("playback ready", update_tooltip, nullptr);
+    hook_associate ("playback stop", update_tooltip, nullptr);
     hook_associate ("window close", window_closed, nullptr);
 
     return true;
@@ -195,6 +219,9 @@ bool StatusIcon::init ()
 
 void StatusIcon::cleanup ()
 {
+    hook_dissociate ("title change", update_tooltip);
+    hook_dissociate ("playback ready", update_tooltip);
+    hook_dissociate ("playback stop", update_tooltip);
     hook_dissociate ("window close", window_closed);
 
     /* Prevent accidentally hiding the interface by disabling
@@ -211,6 +238,12 @@ void StatusIcon::cleanup ()
     audqt::cleanup ();
 }
 
+void StatusIcon::update_tooltip (void * data, void * user_data)
+{
+    String title = aud_drct_get_title ();
+    tray->setToolTip (QString (title));
+}
+
 void StatusIcon::window_closed (void * data, void * user_data)
 {
     bool * handled = (bool *) data;
@@ -222,22 +255,30 @@ void StatusIcon::window_closed (void * data, void * user_data)
     }
 }
 
-void StatusIcon::activate(QSystemTrayIcon::ActivationReason reason)
+void StatusIcon::activate (QSystemTrayIcon::ActivationReason reason)
 {
     switch (reason)
     {
 #ifndef Q_OS_MAC
-        case QSystemTrayIcon::Trigger:
-            toggle_aud_ui ();
-            break;
+    case QSystemTrayIcon::Trigger:
+        toggle_aud_ui ();
+        break;
 #endif
-
-        case QSystemTrayIcon::MiddleClick:
+    case QSystemTrayIcon::MiddleClick:
+        switch (aud_get_int ("statusicon", "middle_click_action"))
+        {
+        case SI_CFG_MIDDLE_CLICK_ACTION_PAUSE:
             aud_drct_pause ();
             break;
 
-        default:
+        case SI_CFG_MIDDLE_CLICK_ACTION_NEXT:
+            aud_drct_pl_next ();
             break;
+        }
+        break;
+
+    default:
+        break;
     }
 }
 

@@ -60,23 +60,24 @@ public:
         OutputPlugin (info, 5)
     {}
 
-    bool init ();
-    void cleanup ();
+    bool init () override;
+    void cleanup () override;
+
     void handle_new_default_device(AudioObjectID newID);
 
-    StereoVolume get_volume ();
-    void set_volume (StereoVolume vol);
+    StereoVolume get_volume () override;
+    void set_volume (StereoVolume vol) override;
 
-    bool open_audio (int format, int rate_, int chan_, String & err);
-    void close_audio ();
+    bool open_audio (int format, int rate_, int chan_, String & err) override;
+    void close_audio () override;
 
-    void period_wait ();
-    int write_audio (const void * data, int len);
-    void drain ();
+    void period_wait () override;
+    int write_audio (const void * data, int len) override;
+    void drain () override;
 
-    int get_delay ();
-    void pause (bool paused);
-    void flush ();
+    int get_delay () override;
+    void pause (bool paused) override;
+    void flush () override;
 
 protected:
     static OSStatus callback (void *inRefCon, AudioUnitRenderActionFlags *ioActionFlags, const AudioTimeStamp *inTimeStamp, UInt32 inBusNumber, UInt32 inNumberFrames, AudioBufferList *ioData);
@@ -144,7 +145,6 @@ static int block_delay = 0;
 static struct timeval block_time = {0, 0};
 
 static AudioComponent output_comp = nullptr;
-// static AudioComponentInstance output_instance = nullptr;
 static AudioUnit output_instance = nullptr;
 
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -223,11 +223,11 @@ bool CoreAudioPlugin::init ()
 
     AudioObjectPropertyAddress prop = { kAudioHardwarePropertyDefaultOutputDevice,
                                         kAudioObjectPropertyScopeGlobal,
-                                        kAudioObjectPropertyElementMaster };
+                                        kAudioObjectPropertyElementMain };
 
     UInt32 size = sizeof(AudioObjectID);
     AudioObjectID defaultOutputDeviceID;
-    err = AudioObjectGetPropertyData(kAudioObjectSystemObject, &prop, 0, NULL, &size, &defaultOutputDeviceID);
+    err = AudioObjectGetPropertyData(kAudioObjectSystemObject, &prop, 0, nullptr, &size, &defaultOutputDeviceID);
     if (err == noErr)
     {
         if (coreAudioDevice) {
@@ -237,7 +237,7 @@ bool CoreAudioPlugin::init ()
             coreAudioDevice = nullptr;
         }
         coreAudioDevice = AudioDevice::GetDevice(defaultOutputDeviceID, false, coreAudioDevice, true);
-        if (coreAudioDevice != NULL)
+        if (coreAudioDevice != nullptr)
         {
             coreAudioDevice->installDefaultDeviceChangeHandler(callDefaultDeviceChangeHandler, static_cast<void*>(this));
             coreAudioDevice->setDefaultDevice(true);
@@ -458,6 +458,8 @@ bool CoreAudioPlugin::open_audio (int format, int rate_, int chan_, String & err
         return 0;
     }
 
+    set_volume (get_volume ());
+
     bool exclusive = aud_get_bool ("coreaudio", "exclusive_mode");
     if (exclusive)
     {
@@ -467,7 +469,7 @@ bool CoreAudioPlugin::open_audio (int format, int rate_, int chan_, String & err
 
         prop.mSelector = kAudioDevicePropertyHogMode;
         prop.mScope    = kAudioObjectPropertyScopeGlobal;
-        prop.mElement  = kAudioObjectPropertyElementMaster;
+        prop.mElement  = kAudioObjectPropertyElementMain;
 
         OSStatus result = AudioObjectSetPropertyData (kAudioObjectSystemObject, & prop, 0, nullptr, sizeof hog_mode, & hog_mode);
         if (result != noErr)
@@ -515,11 +517,11 @@ void CoreAudioPlugin::close_audio ()
 
         prop.mSelector = kAudioDevicePropertyHogMode;
         prop.mScope    = kAudioObjectPropertyScopeGlobal;
-        prop.mElement  = kAudioObjectPropertyElementMaster;
+        prop.mElement  = kAudioObjectPropertyElementMain;
 
         OSStatus err = AudioObjectSetPropertyData (kAudioObjectSystemObject, & prop, 0, nullptr, sizeof hog_mode, & hog_mode);
         if (err != noErr)
-            AUDWARN ("Failed to release device from exclusive mode, continuing anyway...");
+            AUDWARN ("Failed to release device from exclusive mode, continuing anyway...\n");
 
         is_exclusive = false;
     }

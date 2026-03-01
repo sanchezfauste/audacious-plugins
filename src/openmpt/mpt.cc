@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+#include <string.h>
+
 #include <libaudcore/i18n.h>
 #include <libaudcore/plugin.h>
 #include <libaudcore/preferences.h>
@@ -58,7 +60,7 @@ public:
 
     constexpr MPTPlugin() : InputPlugin(info, iinfo) { }
 
-    bool init()
+    bool init() override
     {
         static constexpr const char * defaults[] =
         {
@@ -72,13 +74,13 @@ public:
         return true;
     }
 
-    bool is_our_file(const char *filename, VFSFile &file)
+    bool is_our_file(const char *filename, VFSFile &file) override
     {
         MPTWrap mpt;
         return mpt.open(file);
     }
 
-    bool read_tag(const char *filename, VFSFile &file, Tuple &tuple, Index<char> *)
+    bool read_tag(const char *filename, VFSFile &file, Tuple &tuple, Index<char> *) override
     {
         MPTWrap mpt;
         if (!mpt.open(file))
@@ -86,15 +88,16 @@ public:
 
         tuple.set_filename(filename);
         tuple.set_format(mpt.format(), mpt.channels(), mpt.rate(), 0);
-
         tuple.set_int(Tuple::Length, mpt.duration());
-        tuple.set_str(Tuple::Title, mpt.title());
-        tuple.set_int(Tuple::Channels, mpt.channels());
+
+        const String &title = mpt.title();
+        if (strlen(title) > 0)
+            tuple.set_str(Tuple::Title, title);
 
         return true;
     }
 
-    bool play(const char *filename, VFSFile &file)
+    bool play(const char *filename, VFSFile &file) override
     {
         MPTWrap mpt;
         if (!mpt.open(file))
@@ -151,9 +154,8 @@ const PreferencesWidget MPTPlugin::widgets[] =
     WidgetSpin(
             N_("Stereo separation:"),
             WidgetInt(CFG_SECTION, SETTING_STEREO_SEPARATION, values_changed),
-            { 0.0, 100.0, 1.0, N_("%") }
+            { 0.0, 200.0, 1.0, N_("% (0=mono, 100=default, 200=full)") }
     ),
-
     WidgetCombo(
             N_("Interpolation:"),
             WidgetInt(CFG_SECTION, SETTING_INTERPOLATOR, values_changed),

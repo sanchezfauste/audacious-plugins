@@ -45,7 +45,9 @@ public:
     void activateSearch()
     {
         m_searchBar->show();
-        m_searchBar->setFocus();
+        // use ShortcutFocusReason to select text in the search entry
+        // (the default OtherFocusReason does not select text)
+        m_searchBar->setFocus(Qt::ShortcutFocusReason);
     }
 
 private:
@@ -166,10 +168,18 @@ bool PlaylistTabs::eventFilter(QObject * obj, QEvent * e)
 {
     if (e->type() == QEvent::KeyPress)
     {
-        QKeyEvent * ke = (QKeyEvent *)e;
+        auto event = static_cast<QKeyEvent *>(e);
+        int key = event->key();
 
-        if (ke->key() == Qt::Key_Escape)
+        if (key == Qt::Key_Escape)
             return m_tabbar->cancelRename();
+
+        if (event->modifiers() & Qt::AltModifier &&
+            key >= Qt::Key_1 && key <= Qt::Key_9)
+        {
+            setCurrentIndex(key - Qt::Key_1);
+            return true;
+        }
     }
 
     return QTabWidget::eventFilter(obj, e);
@@ -219,6 +229,7 @@ PlaylistTabBar::PlaylistTabBar(QWidget * parent) : QTabBar(parent)
 {
     setMovable(true);
     setDocumentMode(true);
+    setUsesScrollButtons(true);
     updateSettings();
 
     connect(this, &QTabBar::tabMoved, this, &PlaylistTabBar::tabMoved);
@@ -239,7 +250,7 @@ void PlaylistTabBar::updateIcons()
     QIcon icon;
     int playing = Playlist::playing_playlist().index();
     if (playing >= 0)
-        icon = audqt::get_icon(aud_drct_get_paused() ? "media-playback-pause"
+        icon = QIcon::fromTheme(aud_drct_get_paused() ? "media-playback-pause"
                                                      : "media-playback-start");
 
     int tabs = count();
@@ -324,12 +335,12 @@ void PlaylistTabBar::contextMenuEvent(QContextMenuEvent * e)
     auto menu = new QMenu(this);
     auto playlist = Playlist::by_index(idx);
 
-    auto play_act = new QAction(audqt::get_icon("media-playback-start"),
+    auto play_act = new QAction(QIcon::fromTheme("media-playback-start"),
                                 audqt::translate_str(N_("_Play")), menu);
     auto rename_act =
-        new QAction(audqt::get_icon("insert-text"),
+        new QAction(QIcon::fromTheme("insert-text"),
                     audqt::translate_str(N_("_Rename ...")), menu);
-    auto remove_act = new QAction(audqt::get_icon("edit-delete"),
+    auto remove_act = new QAction(QIcon::fromTheme("edit-delete"),
                                   audqt::translate_str(N_("Remo_ve")), menu);
 
     QObject::connect(play_act, &QAction::triggered,
@@ -396,17 +407,14 @@ void PlaylistTabBar::tabMoved(int from, int to)
 
 void PlaylistTabBar::updateSettings()
 {
-#if QT_VERSION >= 0x050400
     setAutoHide(false);
-#endif
 
     switch (aud_get_int("qtui", "playlist_tabs_visible"))
     {
-#if QT_VERSION >= 0x050400
     case PlaylistTabVisibility::AutoHide:
         setAutoHide(true);
         break;
-#endif
+
     case PlaylistTabVisibility::Always:
         show();
         break;

@@ -47,23 +47,23 @@ public:
 
     constexpr PulseOutput () : OutputPlugin (info, 8) {}
 
-    bool init ();
-    void cleanup ();
+    bool init () override;
+    void cleanup () override;
 
-    StereoVolume get_volume ();
-    void set_volume (StereoVolume v);
+    StereoVolume get_volume () override;
+    void set_volume (StereoVolume v) override;
 
-    bool open_audio (int fmt, int rate, int nch, String & error);
-    void close_audio ();
+    bool open_audio (int fmt, int rate, int nch, String & error) override;
+    void close_audio () override;
 
-    void period_wait ();
-    int write_audio (const void * ptr, int length);
-    void drain ();
+    void period_wait () override;
+    int write_audio (const void * ptr, int length) override;
+    void drain () override;
 
-    int get_delay ();
+    int get_delay () override;
 
-    void pause (bool pause);
-    void flush ();
+    void pause (bool pause) override;
+    void flush () override;
 };
 
 EXPORT PulseOutput aud_plugin_instance;
@@ -428,7 +428,16 @@ static bool create_context (aud::mutex::holder & lock)
         return false;
     }
 
-    if (! (context = pa_context_new (pa_mainloop_get_api (mainloop), get_context_name ())))
+    pa_proplist * proplist = pa_proplist_new ();
+    pa_proplist_sets (proplist, PA_PROP_APPLICATION_ID, "audacious");
+    pa_proplist_sets (proplist, PA_PROP_APPLICATION_ICON_NAME, "audacious");
+
+    context = pa_context_new_with_proplist (pa_mainloop_get_api (mainloop),
+     get_context_name (), proplist);
+
+    pa_proplist_free (proplist);
+
+    if (! context)
     {
         AUDERR ("Failed to allocate context\n");
         return false;

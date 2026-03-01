@@ -30,7 +30,6 @@
 #include "menus.h"
 #include "playlist-qt.h"
 #include "playlist_tabs.h"
-#include "settings.h"
 #include "status_bar.h"
 #include "time_slider.h"
 #include "tool_bar.h"
@@ -52,6 +51,7 @@ public:
     {
         setObjectName(item->id());
         setWindowTitle(item->name());
+        setWindowRole("plugin");
         setWidget(item->widget());
         setContextMenuPolicy(Qt::PreventContextMenu);
 
@@ -117,7 +117,7 @@ static void toggle_search_tool(bool enable)
 static QToolButton * create_menu_button(QWidget * parent, QMenuBar * menubar)
 {
     auto button = new QToolButton(parent);
-    button->setIcon(audqt::get_icon("audacious"));
+    button->setIcon(QIcon::fromTheme("audacious"));
     button->setPopupMode(QToolButton::InstantPopup);
     button->setStyleSheet("QToolButton::menu-indicator { image: none; }");
     button->setToolTip(_("Menu"));
@@ -136,6 +136,7 @@ MainWindow::MainWindow()
       m_center_layout(audqt::make_vbox(m_center_widget, 0)),
       m_infobar(new InfoBar(this)), m_statusbar(new StatusBar(this)),
       m_search_tool(aud_plugin_lookup_basename("search-tool-qt")),
+      m_playback_history(aud_plugin_lookup_basename("playback-history-qt")),
       m_playlist_manager(aud_plugin_lookup_basename("playlist-manager-qt"))
 {
     auto slider = new TimeSlider(this);
@@ -195,6 +196,7 @@ MainWindow::MainWindow()
 
     setMenuBar(m_menubar);
     setDockNestingEnabled(true);
+    setWindowRole("mainwindow");
 
     audqt::register_dock_host(this);
 
@@ -215,7 +217,7 @@ MainWindow::MainWindow()
      * place, but user screenshots show that it somehow happens, and in
      * that case we don't want them to be gone forever. */
     toolbar->show();
-    for (auto w : findChildren<DockWidget *>())
+    for (auto w : findChildren<QDockWidget *>())
         w->show();
 
     /* set initial keyboard focus on the playlist */
@@ -342,13 +344,13 @@ void MainWindow::update_play_pause()
 {
     if (!aud_drct_get_playing() || aud_drct_get_paused())
     {
-        m_play_pause_action->setIcon(audqt::get_icon("media-playback-start"));
+        m_play_pause_action->setIcon(QIcon::fromTheme("media-playback-start"));
         m_play_pause_action->setText(_("Play"));
         m_play_pause_action->setToolTip(_("Play"));
     }
     else
     {
-        m_play_pause_action->setIcon(audqt::get_icon("media-playback-pause"));
+        m_play_pause_action->setIcon(QIcon::fromTheme("media-playback-pause"));
         m_play_pause_action->setText(_("Pause"));
         m_play_pause_action->setToolTip(_("Pause"));
     }
@@ -359,7 +361,7 @@ void MainWindow::title_change_cb()
     auto title = aud_drct_get_title();
     if (title)
     {
-        set_title(QString(title) + QString(" - Audacious"));
+        set_title(QString("%1 - %2").arg((const char *)title, _("Audacious")));
         m_buffering_timer.stop();
     }
 }
@@ -395,7 +397,7 @@ void MainWindow::pause_cb()
 
 void MainWindow::playback_stop_cb()
 {
-    set_title("Audacious");
+    set_title(_("Audacious"));
     m_buffering_timer.stop();
 
     update_play_pause();
@@ -422,10 +424,15 @@ void MainWindow::add_dock_item(audqt::DockItem * item)
 
     if (!restoreDockWidget(w))
     {
-        addDockWidget(Qt::LeftDockWidgetArea, w);
-        // only the search tool is docked by default
-        if (strcmp(item->id(), "search-tool-qt"))
-            w->setFloating(true);
+        if (!strcmp(item->id(), "playback-history-qt"))
+            addDockWidget(Qt::BottomDockWidgetArea, w);
+        else
+        {
+            addDockWidget(Qt::LeftDockWidgetArea, w);
+            // only the search tool and playback history are docked by default
+            if (strcmp(item->id(), "search-tool-qt"))
+                w->setFloating(true);
+        }
     }
 
     /* workaround for QTBUG-89144 */

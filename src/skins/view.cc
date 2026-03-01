@@ -19,8 +19,6 @@
  * using our public API to be a derived work.
  */
 
-#include "view.h"
-
 #include <libaudcore/hook.h>
 #include <libaudcore/mainloop.h>
 #include <libaudcore/runtime.h>
@@ -33,11 +31,10 @@
 #include "vis-callbacks.h"
 #include "playlistwin.h"
 #include "button.h"
-#include "eq-graph.h"
 #include "textbox.h"
 #include "menurow.h"
+#include "view.h"
 #include "window.h"
-#include "vis.h"
 
 void view_show_player (bool show)
 {
@@ -253,6 +250,29 @@ void view_apply_show_remaining ()
     mainwin_update_song_info ();
 }
 
+#ifdef USE_GTK3
+static cairo_region_t * scale_mask (const Index<GdkRectangle> & mask, int scale)
+{
+    cairo_region_t * region = nullptr;
+
+    for (auto & rect : mask)
+    {
+        cairo_rectangle_int_t scaled = {
+            rect.x * scale,
+            rect.y * scale,
+            rect.width * scale,
+            rect.height * scale
+        };
+
+        if (region)
+            cairo_region_union_rectangle (region, & scaled);
+        else
+            region = cairo_region_create_rectangle (& scaled);
+    }
+
+    return region;
+}
+#else
 static GdkRegion * scale_mask (const Index<GdkRectangle> & mask, int scale)
 {
     GdkRegion * region = nullptr;
@@ -274,6 +294,7 @@ static GdkRegion * scale_mask (const Index<GdkRectangle> & mask, int scale)
 
     return region;
 }
+#endif
 
 void view_apply_skin ()
 {

@@ -1,8 +1,12 @@
 # GUI toolkits
 option('gtk', type: 'boolean', value: true,
        description: 'Whether GTK support is enabled')
+option('gtk2', type: 'boolean', value: false,
+       description: 'Whether GTK 2 support is enabled')
 option('qt', type: 'boolean', value: true,
        description: 'Whether Qt support is enabled')
+option('qt5', type: 'boolean', value: false,
+       description: 'Whether Qt 5 support is enabled')
 
 
 # container plugins
@@ -26,10 +30,12 @@ option('amidiplug', type: 'boolean', value: true,
        description: 'Whether AMidiPlug plugin is enabled')
 option('cdaudio', type: 'boolean', value: true,
        description: 'Whether CD audio support is enabled')
+option('cdaudio-cddb', type: 'boolean', value: true,
+       description: 'Whether CDDB support for the Audio CD plugin is enabled')
 option('console', type: 'boolean', value: true,
        description: 'Whether Game Music Emu support is enabled')
-option('ffaudio', type: 'combo', choices: ['ffmpeg', 'libav', 'disabled'],
-       description: 'Choose between ffmpeg, libav or disabled')
+option('ffaudio', type: 'boolean', value: true,
+       description: 'Whether FFmpeg support is enabled')
 option('flac', type: 'boolean', value: true,
        description: 'Whether FLAC support is enabled')
 option('modplug', type: 'boolean', value: true,
@@ -38,6 +44,8 @@ option('mpg123', type: 'boolean', value: true,
        description: 'Whether MPG123 support is enabled')
 option('openmpt', type: 'boolean', value: true,
        description: 'Whether OpenMPT support is enabled')
+option('opus', type: 'boolean', value: true,
+       description: 'Whether Opus support is enabled')
 option('sid', type: 'boolean', value: true,
        description: 'Whether SID emulation support is enabled')
 option('sndfile', type: 'boolean', value: true,
@@ -65,6 +73,8 @@ option('jack', type: 'boolean', value: true,
        description: 'Whether JACK support is enabled')
 option('oss', type: 'boolean', value: true,
        description: 'Whether OSS support is enabled')
+option('pipewire', type: 'boolean', value: true,
+       description: 'Whether PipeWire support is enabled')
 option('pulse', type: 'boolean', value: true,
        description: 'Whether PulseAudio support is enabled')
 option('qtaudio', type: 'boolean', value: true,
@@ -84,8 +94,8 @@ option('hotkey', type: 'boolean', value: true,
        description: 'Whether the global hotkey plugin (X11) is enabled')
 option('lirc', type: 'boolean', value: true,
        description: 'Whether the LIRC plugin is enabled')
-option('mac-media-keys', type: 'boolean', value: false,
-       description: 'Whether the Mac Media Keys plugin is enabled')
+option('mac-now-playing', type: 'boolean', value: true,
+       description: 'Whether the Mac Now Playing plugin is enabled')
 option('mpris2', type: 'boolean', value: true,
        description: 'Whether MPRIS 2.0 support is enabled')
 option('notify', type: 'boolean', value: true,
@@ -113,9 +123,4 @@ option('speedpitch', type: 'boolean', value: true,
 option('gl-spectrum', type: 'boolean', value: true,
        description: 'Whether the OpenGL spectrum visualization plugin is enabled')
 option('vumeter', type: 'boolean', value: true,
-       description: 'Whether the VUMeter visualization plugin is enabled')
-
-
-# interface plugins
-option('moonstone', type: 'boolean', value: false,
-       description: 'Whether the Moonstone UI plugin is enabled')
+       description: 'Whether the VU Meter visualization plugin is enabled')

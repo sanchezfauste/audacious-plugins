@@ -32,6 +32,7 @@
 #include "playlist_model.h"
 
 #include "../ui-common/menu-ops.h"
+#include "../ui-common/qt-compat.h"
 
 PlaylistWidget::PlaylistWidget(QWidget * parent, Playlist playlist)
     : audqt::TreeView(parent), m_playlist(playlist),
@@ -49,8 +50,6 @@ PlaylistWidget::PlaylistWidget(QWidget * parent, Playlist playlist)
 
     auto header = new PlaylistHeader(this);
     setHeader(header);
-    /* this has to come after setHeader() to take effect */
-    header->setSectionsClickable(true);
 
     setAllColumnsShowFocus(true);
     setAlternatingRowColors(true);
@@ -179,6 +178,19 @@ void PlaylistWidget::keyPressEvent(QKeyEvent * event)
         }
     }
 
+    if (event->modifiers() & Qt::ControlModifier)
+    {
+        switch (event->key())
+        {
+        case Qt::Key_PageUp:
+            pl_prev();
+            return;
+        case Qt::Key_PageDown:
+            pl_next();
+            return;
+        }
+    }
+
     audqt::TreeView::keyPressEvent(event);
 }
 
@@ -228,10 +240,10 @@ void PlaylistWidget::dropEvent(QDropEvent * event)
     switch (dropIndicatorPosition())
     {
     case AboveItem:
-        to = indexToRow(indexAt(event->pos()));
+        to = indexToRow(indexAt(QtCompat::pos(event)));
         break;
     case BelowItem:
-        to = indexToRow(indexAt(event->pos())) + 1;
+        to = indexToRow(indexAt(QtCompat::pos(event))) + 1;
         break;
     case OnViewport:
         to = m_playlist.n_entries();
@@ -273,6 +285,21 @@ void PlaylistWidget::selectionChanged(const QItemSelection & selected,
         for (const QModelIndex & idx : deselected.indexes())
             m_playlist.select_entry(indexToRow(idx), false);
     }
+}
+
+QRect PlaylistWidget::visualRect(const QModelIndex & index) const
+{
+    if (index.column() == 0)
+    {
+        // workaround for Qt 6.8 regression (commit 52c908fdb50e,
+        // "QAbstractItemView: implement full-row drop indicator")
+        // where QAbstractItemView::dragMoveEvent() uses visualRect()
+        // of column #0 to compute drop indicator geometry, which is
+        // invalid if column #0 is hidden
+        auto visibleIndex = index.siblingAtColumn(firstVisibleColumn);
+        return audqt::TreeView::visualRect(visibleIndex);
+    }
+    return audqt::TreeView::visualRect(index);
 }
 
 /* returns true if the focus changed or the playlist scrolled */
@@ -540,5 +567,8 @@ void PlaylistWidget::hidePopup()
 
 void PlaylistWidget::updateSettings()
 {
+    header()->setSectionsClickable(
+        aud_get_bool("qtui", "playlist_headers_sortable"));
+
     setHeaderHidden(!aud_get_bool("qtui", "playlist_headers"));
 }

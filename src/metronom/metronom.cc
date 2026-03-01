@@ -49,9 +49,9 @@ public:
     constexpr Metronome() : InputPlugin(info, InputInfo()
         .with_schemes(schemes)) {}
 
-    bool is_our_file(const char *filename, VFSFile &);
-    bool read_tag(const char *filename, VFSFile &file, Tuple &tuple, Index<char> *image);
-    bool play(const char *filename, VFSFile &);
+    bool is_our_file(const char *filename, VFSFile &) override;
+    bool read_tag(const char *filename, VFSFile &file, Tuple &tuple, Index<char> *image) override;
+    bool play(const char *filename, VFSFile &) override;
 };
 
 EXPORT Metronome aud_plugin_instance;
@@ -167,7 +167,7 @@ bool Metronome::play (const char * filename, VFSFile &)
 
     if (!metronom_get_cp(filename, &pmetronom, desc))
     {
-        AUDERR ("Invalid metronom tact parameters in URI %s", filename);
+        AUDERR ("Invalid metronom tact parameters in URI %s\n", filename);
         return false;
     }
 

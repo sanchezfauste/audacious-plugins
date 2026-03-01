@@ -18,9 +18,7 @@
 */
 
 #include <algorithm>
-#include <sstream>
 #include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
 
 #include <adplug/adplug.h>
@@ -40,8 +38,8 @@
 #include <libaudcore/audstrings.h>
 #include <libaudcore/i18n.h>
 #include <libaudcore/plugin.h>
-#include <libaudcore/runtime.h>
 #include <libaudcore/preferences.h>
+#include <libaudcore/runtime.h>
 
 #include "adplug-xmms.h"
 
@@ -74,14 +72,15 @@ public:
   };
 
   constexpr AdPlugXMMS () : InputPlugin (info, InputInfo ()
+    .with_priority (_AUD_PLUGIN_DEFAULT_PRIO + 1) // prefer OpenMPT
     .with_exts (exts)) {}
 
-  bool init ();
-  void cleanup ();
+  bool init () override;
+  void cleanup () override;
 
-  bool is_our_file (const char * filename, VFSFile & file);
-  bool read_tag (const char * filename, VFSFile & file, Tuple & tuple, Index<char> * image);
-  bool play (const char * filename, VFSFile & file);
+  bool is_our_file (const char * filename, VFSFile & file) override;
+  bool read_tag (const char * filename, VFSFile & file, Tuple & tuple, Index<char> * image) override;
+  bool play (const char * filename, VFSFile & file) override;
 };
 
 EXPORT AdPlugXMMS aud_plugin_instance;
@@ -122,6 +121,7 @@ static struct {
 #ifdef DEBUG
 
 #include <stdarg.h>
+#include <stdio.h>
 
 static void
 dbg_printf (const char *fmt, ...)
@@ -350,7 +350,7 @@ const PreferencesWidget AdPlugXMMS::widgets[] = {
   WidgetCombo (N_("OPL Emulator:"),
     WidgetInt (CFG_ID, "Emulator"),
     {{plugin_combo}}),
-  WidgetSpin (N_("Sample rate"),
+  WidgetSpin (N_("Sample rate:"),
     WidgetInt (CFG_ID, "Frequency"), {8000, 192000, 50, N_("Hz")}),
   WidgetLabel (N_("<b>Miscellaneous</b>")),
   WidgetCheck (N_("Repeat song in endless loop"),

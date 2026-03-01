@@ -45,9 +45,9 @@ public:
         .with_exts (exts)
         .with_mimes (mimes)) {}
 
-    bool is_our_file (const char * filename, VFSFile & file);
-    bool read_tag (const char * filename, VFSFile & file, Tuple & tuple, Index<char> * image);
-    bool play (const char * filename, VFSFile & file);
+    bool is_our_file (const char * filename, VFSFile & file) override;
+    bool read_tag (const char * filename, VFSFile & file, Tuple & tuple, Index<char> * image) override;
+    bool play (const char * filename, VFSFile & file) override;
 };
 
 EXPORT SndfilePlugin aud_plugin_instance;
@@ -219,7 +219,7 @@ bool SndfilePlugin::read_tag (const char * filename, VFSFile & file, Tuple & tup
             format = "Core Audio File";
             break;
         default:
-            format = "Unknown sndfile";
+            format = nullptr;
     }
 
     switch (sfinfo.format & SF_FORMAT_SUBMASK)
@@ -294,6 +294,15 @@ bool SndfilePlugin::read_tag (const char * filename, VFSFile & file, Tuple & tup
             subformat = nullptr;
     }
 
+    if (format == nullptr)
+    {
+        SF_FORMAT_INFO info = {.format = sfinfo.format & SF_FORMAT_SUBMASK};
+        if (sf_command (sndfile, SFC_GET_FORMAT_INFO, & info, sizeof (info)) == 0)
+            format = info.name;
+        else
+            format = "Unknown format";
+    }
+
     if (subformat != nullptr)
         tuple.set_format (str_printf ("%s (%s)", format, subformat),
          sfinfo.channels, sfinfo.samplerate, 0);
@@ -352,7 +361,7 @@ bool SndfilePlugin::is_our_file (const char * filename, VFSFile & file)
     if (!tmp_sndfile)
         return false;
 
-    /* It can so close file and return true. */
+    /* It can, so close file and return true. */
     sf_close (tmp_sndfile);
     tmp_sndfile = nullptr;
 
@@ -375,5 +384,20 @@ const char SndfilePlugin::about[] =
     "along with this program; if not, write to the Free Software "
     "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.");
 
-const char * const SndfilePlugin::exts[] = { "aiff", "au", "raw", "wav", nullptr };
-const char * const SndfilePlugin::mimes[] = { "audio/wav", "audio/x-wav", nullptr };
+const char * const SndfilePlugin::exts[] = {
+    "aif",
+    "aifc",
+    "aiff",
+    "au",
+    "raw",
+    "wav",
+    nullptr
+};
+
+const char * const SndfilePlugin::mimes[] = {
+    "audio/aiff",
+    "audio/x-aiff",
+    "audio/wav",
+    "audio/x-wav",
+    nullptr
+};

@@ -43,7 +43,7 @@ protected:
 
 #ifdef Q_OS_MAC
     /* repaint() causes graphical glitches on OS X
-     * http://redmine.audacious-media-player.org/issues/558 */
+     * https://github.com/audacious-media-player/audacious/issues/694 */
     void draw_now () { update (); }
 #else
     void draw_now () { repaint (); }
@@ -59,21 +59,21 @@ protected:
     virtual bool close () { return false; }
 
 private:
-    void paintEvent (QPaintEvent *);
+    void paintEvent (QPaintEvent *) override;
 
-    void keyPressEvent (QKeyEvent * event)
+    void keyPressEvent (QKeyEvent * event) override
         { event->setAccepted (keypress (event)); }
-    void mousePressEvent (QMouseEvent * event)
+    void mousePressEvent (QMouseEvent * event) override
         { event->setAccepted (button_press (event)); }
-    void mouseReleaseEvent (QMouseEvent * event)
+    void mouseReleaseEvent (QMouseEvent * event) override
         { event->setAccepted (button_release (event)); }
-    void wheelEvent (QWheelEvent * event)
+    void wheelEvent (QWheelEvent * event) override
         { event->setAccepted (scroll (event)); }
-    void mouseMoveEvent (QMouseEvent * event)
+    void mouseMoveEvent (QMouseEvent * event) override
         { event->setAccepted (motion (event)); }
-    void leaveEvent (QEvent * event)
+    void leaveEvent (QEvent * event) override
         { event->setAccepted (leave ()); }
-    void closeEvent (QCloseEvent * event)
+    void closeEvent (QCloseEvent * event) override
         { event->setAccepted (close ()); }
 
     bool m_drawable = false;

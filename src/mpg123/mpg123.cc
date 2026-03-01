@@ -58,15 +58,15 @@ public:
 
     constexpr MPG123Plugin() : InputPlugin(info, iinfo) {}
 
-    bool init();
-    void cleanup();
+    bool init() override;
+    void cleanup() override;
 
-    bool is_our_file(const char * filename, VFSFile & file);
+    bool is_our_file(const char * filename, VFSFile & file) override;
     bool read_tag(const char * filename, VFSFile & file, Tuple & tuple,
-                  Index<char> * image);
+                  Index<char> * image) override;
     bool write_tuple(const char * filename, VFSFile & file,
-                     const Tuple & tuple);
-    bool play(const char * filename, VFSFile & file);
+                     const Tuple & tuple) override;
+    bool play(const char * filename, VFSFile & file) override;
 };
 
 EXPORT MPG123Plugin aud_plugin_instance;
@@ -182,6 +182,10 @@ DecodeState::DecodeState(const char * filename, VFSFile & file, bool probing,
             goto err;
 
         if (mpg123_info(dec, &info) < 0)
+            goto err;
+
+        // heuristic/sanity check to avoid false positives
+        if (probing && !stream && info.vbr == MPG123_CBR && info.bitrate <= 0)
             goto err;
 
         return;
@@ -356,6 +360,9 @@ bool MPG123Plugin::play(const char * filename, VFSFile & file)
 
             if (ret == MPG123_DONE || ret == MPG123_ERR_READER)
                 break;
+
+            if (ret == MPG123_NEW_FORMAT)
+                continue;
 
             if (ret < 0)
             {

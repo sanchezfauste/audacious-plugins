@@ -38,10 +38,9 @@
 #include <libaudqt/libaudqt.h>
 
 #include "../ui-common/dialogs-qt.h"
+#include "../ui-common/qt-compat.h"
 
 #include "actions-mainwin.h"
-#include "actions-playlist.h"
-#include "dnd.h"
 #include "menus.h"
 #include "plugin.h"
 #include "skins_cfg.h"
@@ -59,7 +58,6 @@
 #include "textbox.h"
 #include "window.h"
 #include "vis.h"
-#include "skins_util.h"
 #include "view.h"
 
 #define SEEK_THRESHOLD 200 /* milliseconds */
@@ -79,10 +77,15 @@ private:
     int m_scroll_delta_x = 0;
     int m_scroll_delta_y = 0;
 
-    void draw (QPainter & cr);
-    bool button_press (QMouseEvent * event);
-    bool scroll (QWheelEvent * event);
-    void enterEvent (QEvent * event);
+    void draw (QPainter & cr) override;
+    bool button_press (QMouseEvent * event) override;
+    bool scroll (QWheelEvent * event) override;
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    void enterEvent (QEnterEvent * enterEvent) override;
+#else
+    void enterEvent (QEvent * event) override;
+#endif
 };
 
 Window * mainwin;
@@ -329,7 +332,7 @@ static void mainwin_set_song_info (int bitrate, int samplerate, int channels)
     mainwin_monostereo->set_num_channels (channels);
 
     if (bitrate > 0)
-        snprintf (scratch, sizeof scratch, "%d kbps", bitrate / 1000);
+        snprintf (scratch, sizeof scratch, "%d kbit/s", bitrate / 1000);
     else
         scratch[0] = 0;
 
@@ -489,7 +492,7 @@ bool MainWindow::scroll (QWheelEvent * event)
     {
         m_scroll_delta_y -= 120 * steps_y;
         int volume_delta = aud_get_int ("volume_delta");
-        aud_drct_set_volume_main (aud_drct_get_volume_main () + steps_y * volume_delta);
+        mainwin_set_volume_diff (steps_y * volume_delta);
     }
 
     return true;
@@ -499,7 +502,7 @@ bool MainWindow::button_press (QMouseEvent * event)
 {
     if (event->button () == Qt::LeftButton &&
      event->type () == QEvent::MouseButtonDblClick &&
-     event->y () < 14 * config.scale)
+     QtCompat::y (event) < 14 * config.scale)
     {
         mainwin_shade_toggle ();
         return true;
@@ -507,21 +510,26 @@ bool MainWindow::button_press (QMouseEvent * event)
 
     if (event->button () == Qt::RightButton && event->type () == QEvent::MouseButtonPress)
     {
-        menu_popup (UI_MENU_MAIN, event->globalX (), event->globalY (), false, false);
+        menu_popup (UI_MENU_MAIN, QtCompat::globalX (event), QtCompat::globalY (event), false, false);
         return true;
     }
 
     return Window::button_press (event);
 }
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+void MainWindow::enterEvent (QEnterEvent * enterEvent)
+{
+#else
 void MainWindow::enterEvent (QEvent * event)
 {
-    if (! is_shaded() || ! aud_get_bool (nullptr, "show_filepopup_for_tuple"))
+    auto enterEvent = static_cast<QEnterEvent *> (event);
+#endif
+    if (! is_shaded () || ! aud_get_bool ("show_filepopup_for_tuple"))
         return;
 
-    auto enterEvent = static_cast<QEnterEvent *> (event);
-    if (enterEvent->x () >= 79 * config.scale &&
-        enterEvent->x () <= 157 * config.scale)
+    if (QtCompat::x (enterEvent) >= 79 * config.scale &&
+        QtCompat::x (enterEvent) <= 157 * config.scale)
     {
         audqt::infopopup_show_current ();
     }
@@ -529,7 +537,7 @@ void MainWindow::enterEvent (QEvent * event)
 
 static void mainwin_playback_rpress (Button * button, QMouseEvent * event)
 {
-    menu_popup (UI_MENU_PLAYBACK, event->globalX (), event->globalY (), false, false);
+    menu_popup (UI_MENU_PLAYBACK, QtCompat::globalX (event), QtCompat::globalY (event), false, false);
 }
 
 bool Window::keypress (QKeyEvent * event)
@@ -831,7 +839,10 @@ void mainwin_mr_change (MenuRowItem i)
             mainwin_lock_info_text (_("File Info Box"));
             break;
         case MENUROW_SCALE:
-            mainwin_lock_info_text (_("Double Size"));
+            if (aud_get_bool ("skins", "double_size"))
+                mainwin_lock_info_text (_("Disable 'Double Size'"));
+            else
+                mainwin_lock_info_text (_("Enable 'Double Size'"));
             break;
         case MENUROW_VISUALIZATION:
             mainwin_lock_info_text (_("Visualizations"));
@@ -846,7 +857,7 @@ void mainwin_mr_release (MenuRowItem i, QMouseEvent * event)
     switch (i)
     {
         case MENUROW_OPTIONS:
-            menu_popup (UI_MENU_VIEW, event->globalX (), event->globalY (), false, false);
+            menu_popup (UI_MENU_VIEW, QtCompat::globalX (event), QtCompat::globalY (event), false, false);
             break;
         case MENUROW_ALWAYS:
             view_set_on_top (! aud_get_bool ("skins", "always_on_top"));
@@ -880,7 +891,7 @@ static bool mainwin_info_button_press (QMouseEvent * event)
 {
     if (event->type () == QEvent::MouseButtonPress && event->button () == Qt::RightButton)
     {
-        menu_popup (UI_MENU_PLAYBACK, event->globalX (), event->globalY (), false, false);
+        menu_popup (UI_MENU_PLAYBACK, QtCompat::globalX (event), QtCompat::globalY (event), false, false);
         return true;
     }
 
@@ -1102,7 +1113,7 @@ void MainWindow::draw (QPainter & cr)
     int height = is_shaded () ? MAINWIN_SHADED_HEIGHT : skin.hints.mainwin_height;
 
     skin_draw_pixbuf (cr, SKIN_MAIN, 0, 0, 0, 0, width, height);
-    skin_draw_mainwin_titlebar (cr, is_shaded (), true);
+    skin_draw_mainwin_titlebar (cr, is_shaded (), is_focused ());
 }
 
 static void mainwin_create_window ()
@@ -1110,6 +1121,7 @@ static void mainwin_create_window ()
     bool shaded = aud_get_bool ("skins", "player_shaded");
 
     mainwin = new MainWindow (shaded);
+    mainwin->setWindowRole("mainwindow");
 
 #if 0
     GtkWidget * w = mainwin->gtk ();

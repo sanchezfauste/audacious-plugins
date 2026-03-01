@@ -22,10 +22,12 @@
 
 #include "oss.h"
 
+#include <errno.h>
+#include <poll.h>
+#include <string.h>
+
 #include <libaudcore/audstrings.h>
 #include <libaudcore/runtime.h>
-
-#include <poll.h>
 
 constexpr StereoVolume to_stereo_volume(int vol)
     { return {vol & 0x00ff, vol >> 8}; }
@@ -118,7 +120,7 @@ static int log2(int x)
 
 bool OSSPlugin::set_buffer(String &error)
 {
-    int milliseconds = aud_get_int(nullptr, "output_buffer_size");
+    int milliseconds = aud_get_int("output_buffer_size");
     int bytes = frames_to_bytes(aud::rescale(milliseconds, 1000, m_rate));
     int fragorder = aud::clamp(log2(bytes / 4), 9, 15);
     int numfrags = aud::clamp(aud::rdiv(bytes, 1 << fragorder), 4, 32767);
@@ -145,9 +147,9 @@ static int open_device()
         flags |= O_EXCL;
     }
 
-    if (aud_get_bool("oss4", "use_alt_device") && alt_device != nullptr)
+    if (aud_get_bool("oss4", "use_alt_device") && alt_device)
         res = open(alt_device, flags);
-    else if (device != nullptr)
+    else if (device)
         res = open(device, flags);
     else
         res = open(DEFAULT_DSP, flags);

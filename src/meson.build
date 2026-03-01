@@ -1,20 +1,6 @@
 src_inc = include_directories('.')
 
 
-config_h_full_path = join_paths(meson.current_build_dir(), 'config.h')
-
-
-if cc.get_id() in ['gcc', 'clang']
-  add_project_arguments('-include', config_h_full_path, language: ['c', 'cpp'])
-
-  if have_darwin
-    add_project_arguments('-include', config_h_full_path, language: ['objc', 'objcpp'])
-  endif
-else
-  error('Please implement -include handling for your chosen compiler.')
-endif
-
-
 # input plugins
 subdir('metronom')
 subdir('psf')
@@ -28,6 +14,8 @@ endif
 
 
 # effect plugins
+subdir('background_music')
+subdir('bitcrusher')
 subdir('compressor')
 subdir('crossfade')
 subdir('crystalizer')
@@ -94,7 +82,9 @@ endif
 if conf.has('USE_QT')
   subdir('albumart-qt')
   subdir('blur_scope-qt')
-  subdir('lyricwiki-qt')
+  subdir('filebrowser-qt')
+  subdir('lyrics-qt')
+  subdir('playback-history-qt')
   subdir('playlist-manager-qt')
   subdir('qt-spectrum')
   subdir('qtui')
@@ -111,12 +101,8 @@ if conf.has('USE_QT')
     subdir('qtglspectrum')
   endif
 
-  if get_option('hotkey')
+  if get_option('hotkey') and not (have_darwin or have_windows or have_cygwin)
     subdir('qthotkey')
-  endif
-
-  if get_option('moonstone')
-    subdir('moonstone')
   endif
 
   if get_option('qtaudio')
@@ -135,12 +121,14 @@ endif
 
 # GTK-specific plugins
 if conf.has('USE_GTK')
-  subdir('alarm')
   subdir('albumart')
   subdir('blur_scope')
+  subdir('filebrowser')
   subdir('cairo-spectrum')
   subdir('gtkui')
   subdir('ladspa')
+  subdir('lyrics-gtk')
+  subdir('playback-history')
   subdir('playlist-manager')
   subdir('search-tool')
   subdir('skins')
@@ -157,20 +145,20 @@ if conf.has('USE_GTK')
   if get_option('hotkey')
     subdir('hotkey')
   endif
+
+  if get_option('vumeter')
+    subdir('vumeter')
+  endif
 endif
 
 
 # general plugins
-if have_cdaudio
-  subdir('cd-menu-items')
-endif
-
 if get_option('lirc')
   subdir('lirc')
 endif
 
-if get_option('mac-media-keys') and have_darwin
-  subdir('mac-media-keys')
+if get_option('mac-now-playing') and have_darwin
+  subdir('mac-now-playing')
 endif
 
 if get_option('mpris2') and not have_windows
@@ -199,11 +187,15 @@ if get_option('amidiplug')
   subdir('amidiplug')
 endif
 
-if have_cdaudio
+if get_option('cdaudio')
   subdir('cdaudio')
+
+  if have_cdaudio
+    subdir('cd-menu-items')
+  endif
 endif
 
-if get_option('ffaudio') in ['ffmpeg', 'libav']
+if get_option('ffaudio')
   subdir('ffaudio')
 endif
 
@@ -221,6 +213,10 @@ endif
 
 if get_option('openmpt')
   subdir('openmpt')
+endif
+
+if get_option('opus')
+  subdir('opus')
 endif
 
 if get_option('sid')
@@ -261,6 +257,10 @@ if get_option('oss')
   subdir('oss4')
 endif
 
+if get_option('pipewire')
+  subdir('pipewire')
+endif
+
 if get_option('pulse')
   subdir('pulse')
 endif
@@ -273,12 +273,13 @@ if get_option('sndio')
   subdir('sndio')
 endif
 
-if have_windows
+if have_windows or have_cygwin
   subdir('waveout')
 endif
 
 
 # config.h stuff
-configure_file(input: 'config.h.meson',
+configure_file(input: '../config.h.meson',
   output: 'config.h',
-  configuration: conf)
+  configuration: conf
+)

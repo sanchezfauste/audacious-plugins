@@ -35,9 +35,10 @@
 #include <libaudqt/libaudqt.h>
 
 static const char * const s_col_keys[] = {
-    "number",       "title",    "artist", "year",    "album",
-    "album-artist", "track",    "genre",  "queued",  "length",
-    "path",         "filename", "custom", "bitrate", "comment"};
+    "number",       "title",          "artist", "year",         "album",
+    "album-artist", "track",          "genre",  "queued",       "length",
+    "path",         "filename",       "custom", "bitrate",      "comment",
+    "publisher",    "catalog-number", "disc",   "file-created", "file-modified"};
 
 static const int s_default_widths[] = {
     25,  // entry number
@@ -54,7 +55,12 @@ static const int s_default_widths[] = {
     275, // filename
     275, // custom title
     75,  // bitrate
-    275  // comment
+    275, // comment
+    175, // publisher
+    75,  // catalog number
+    25,  // disc
+    190, // file created
+    190, // file modified
 };
 
 static const Playlist::SortType s_sort_types[] = {
@@ -72,7 +78,12 @@ static const Playlist::SortType s_sort_types[] = {
     Playlist::Filename,       // file name
     Playlist::FormattedTitle, // custom title
     Playlist::n_sort_types,   // bitrate
-    Playlist::Comment         // comment
+    Playlist::Comment,        // comment,
+    Playlist::Publisher,      // publisher
+    Playlist::CatalogNum,     // catalog number
+    Playlist::Disc,           // disc
+    Playlist::FileCreated,    // file created
+    Playlist::FileModified,   // file modified
 };
 
 static_assert(aud::n_elems(s_col_keys) == PlaylistModel::n_cols,
@@ -255,6 +266,23 @@ void PlaylistHeader::contextMenuEvent(QContextMenuEvent * event)
     menu->popup(event->globalPos());
 }
 
+bool PlaylistHeader::event(QEvent * event)
+{
+    // Work around Qt 6 resetting column widths during StyleChange
+    // (happens at least with 6.6.2, did not happen with Qt 5.x)
+    m_inStyleChange = (event->type() == QEvent::StyleChange);
+
+    bool ret = QHeaderView::event(event);
+
+    if (m_inStyleChange)
+    {
+        updateColumns();
+        m_inStyleChange = false;
+    }
+
+    return ret;
+}
+
 void PlaylistHeader::updateColumns()
 {
     m_inUpdate = true;
@@ -323,7 +351,7 @@ void PlaylistHeader::sectionClicked(int logicalIndex)
 void PlaylistHeader::sectionMoved(int logicalIndex, int oldVisualIndex,
                                   int newVisualIndex)
 {
-    if (m_inUpdate)
+    if (m_inUpdate || m_inStyleChange)
         return;
 
     int old_pos = oldVisualIndex - 1;
@@ -349,7 +377,7 @@ void PlaylistHeader::sectionMoved(int logicalIndex, int oldVisualIndex,
 void PlaylistHeader::sectionResized(int logicalIndex, int /*oldSize*/,
                                     int newSize)
 {
-    if (m_inUpdate)
+    if (m_inUpdate || m_inStyleChange)
         return;
 
     int col = logicalIndex - 1;

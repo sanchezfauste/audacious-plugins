@@ -33,7 +33,6 @@
 
 #include "gtkui.h"
 #include "ui_playlist_notebook.h"
-#include "ui_playlist_widget.h"
 
 #include "../ui-common/menu-ops.h"
 
@@ -131,6 +130,9 @@ static const AudguiMenuItem sort_items[] = {
     MenuCommand (N_("By _File Path"), nullptr, NONE, sort_path),
     MenuCommand (N_("By _Custom Title"), nullptr, NONE, sort_custom_title),
     MenuCommand (N_("By C_omment"), nullptr, NONE, sort_comment),
+    MenuCommand (N_("By D_isc Number"), nullptr, NONE, sort_disc),
+    MenuCommand (N_("By File Created"), nullptr, NONE, sort_file_created),
+    MenuCommand (N_("By File Modified"), nullptr, NONE, sort_file_modified),
     MenuSep (),
     MenuCommand (N_("R_everse Order"), "view-sort-descending", NONE, sort_reverse),
     MenuCommand (N_("_Random Order"), nullptr, NONE, sort_random)
@@ -148,6 +150,9 @@ static const AudguiMenuItem sort_sel_items[] = {
     MenuCommand (N_("By _File Path"), nullptr, NONE, sort_sel_path),
     MenuCommand (N_("By _Custom Title"), nullptr, NONE, sort_sel_custom_title),
     MenuCommand (N_("By C_omment"), nullptr, NONE, sort_sel_comment),
+    MenuCommand (N_("By D_isc Number"), nullptr, NONE, sort_sel_disc),
+    MenuCommand (N_("By File Created"), nullptr, NONE, sort_sel_file_created),
+    MenuCommand (N_("By File Modified"), nullptr, NONE, sort_sel_file_modified),
     MenuSep (),
     MenuCommand (N_("R_everse Order"), "view-sort-descending", NONE, sort_sel_reverse),
     MenuCommand (N_("_Random Order"), nullptr, NONE, sort_sel_random)
@@ -178,7 +183,7 @@ static const AudguiMenuItem output_items[] = {
     MenuCommand (N_("Volume _Down"), "audio-volume-low", '-', CTRL, volume_down),
     MenuSep (),
     MenuCommand (N_("_Equalizer ..."), "multimedia-volume-control", 'e', CTRL, audgui_show_equalizer_window),
-    MenuCommand (N_("E_ffects ..."), nullptr, NONE, configure_effects),
+    MenuCommand (N_("E_ffects ..."), "preferences-system", NONE, configure_effects),
     MenuSep (),
     MenuToggle (N_("_Record Stream"), nullptr, 'd', CTRL, nullptr, "record", nullptr, "set record"),
     MenuCommand (N_("Audio _Settings ..."), "audio-card", NONE, configure_output)
@@ -193,7 +198,7 @@ static const AudguiMenuItem view_items[] = {
     MenuSep (),
     MenuToggle (N_("Show _Remaining Time"), nullptr, 'r', SHIFT_CTRL, "gtkui", "show_remaining_time"),
     MenuSep (),
-    MenuCommand (N_("_Visualizations ..."), nullptr, NONE, configure_visualizations)
+    MenuCommand (N_("_Visualizations ..."), "preferences-system", NONE, configure_visualizations)
 };
 
 static const AudguiMenuItem main_items[] = {
@@ -212,11 +217,11 @@ static const AudguiMenuItem rclick_items[] = {
     MenuCommand (N_("_Open Containing Folder"), "folder", NONE, pl_open_folder),
     MenuCommand (N_("_Refresh Selected"), "view-refresh", GDK_KEY_F6, (GdkModifierType) 0, pl_refresh_sel),
     MenuSep (),
-    MenuCommand (N_("Cu_t"), "edit-cut", NONE, pl_cut),
-    MenuCommand (N_("_Copy"), "edit-copy", NONE, pl_copy),
-    MenuCommand (N_("_Paste"), "edit-paste", NONE, pl_paste),
+    MenuCommand (N_("Cu_t"), "edit-cut", 'x', CTRL, pl_cut),
+    MenuCommand (N_("_Copy"), "edit-copy", 'c', CTRL, pl_copy),
+    MenuCommand (N_("_Paste"), "edit-paste", 'v', CTRL, pl_paste),
     MenuCommand (N_("Paste at _End"), "edit-paste", 'v', SHIFT_CTRL, pl_paste_end),
-    MenuCommand (N_("Select _All"), "edit-select-all", NONE, pl_select_all),
+    MenuCommand (N_("Select _All"), "edit-select-all", 'a', CTRL, pl_select_all),
     MenuSep (),
     MenuSub (N_("_Services"), nullptr, get_services_pl)
 };

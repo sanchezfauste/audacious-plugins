@@ -18,8 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses>.
  */
 
-#include <errno.h>
 #include <pthread.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -39,7 +39,9 @@
 #include <cdio/cdda.h>
 #endif
 
+#ifdef HAVE_LIBCDDB
 #include <cddb/cddb.h>
+#endif
 
 #include <libaudcore/audstrings.h>
 #include <libaudcore/hook.h>
@@ -77,12 +79,12 @@ public:
     constexpr CDAudio () : InputPlugin (info, InputInfo (FlagSubtunes)
         .with_schemes (cdaudio_schemes)) {}
 
-    bool init ();
-    void cleanup ();
+    bool init () override;
+    void cleanup () override;
 
-    bool is_our_file (const char * filename, VFSFile & file);
-    bool read_tag (const char * filename, VFSFile & file, Tuple & tuple, Index<char> * image);
-    bool play (const char * filename, VFSFile & file);
+    bool is_our_file (const char * filename, VFSFile & file) override;
+    bool read_tag (const char * filename, VFSFile & file, Tuple & tuple, Index<char> * image) override;
+    bool play (const char * filename, VFSFile & file) override;
 };
 
 EXPORT CDAudio aud_plugin_instance;
@@ -124,11 +126,14 @@ const char CDAudio::about[] =
 const char * const CDAudio::defaults[] = {
  "disc_speed", "2",
  "use_cdtext", "TRUE",
+#ifdef HAVE_LIBCDDB
  "use_cddb", "TRUE",
  "cddbhttp", "FALSE",
  "cddbserver", "gnudb.gnudb.org",
  "cddbport", "8880",
- nullptr};
+#endif
+ nullptr
+};
 
 const PreferencesWidget CDAudio::widgets[] = {
     WidgetLabel (N_("<b>Device</b>")),
@@ -140,6 +145,7 @@ const PreferencesWidget CDAudio::widgets[] = {
     WidgetLabel (N_("<b>Metadata</b>")),
     WidgetCheck (N_("Use CD-Text"),
         WidgetBool ("CDDA", "use_cdtext")),
+#ifdef HAVE_LIBCDDB
     WidgetCheck (N_("Use CDDB"),
         WidgetBool ("CDDA", "use_cddb")),
     WidgetCheck (N_("Use HTTP instead of CDDBP"),
@@ -157,6 +163,7 @@ const PreferencesWidget CDAudio::widgets[] = {
         WidgetInt ("CDDA", "cddbport"),
         {0, 65535, 1},
         WIDGET_CHILD)
+#endif
 };
 
 const PluginPreferences CDAudio::prefs = {{widgets}};
@@ -221,7 +228,9 @@ bool CDAudio::init ()
         return false;
     }
 
+#ifdef HAVE_LIBCDDB
     libcddb_init ();
+#endif
 
     return true;
 }
@@ -345,7 +354,9 @@ void CDAudio::cleanup ()
     reset_trackinfo ();
     purge_func.stop ();
 
+#ifdef HAVE_LIBCDDB
     libcddb_shutdown ();
+#endif
 
     pthread_mutex_unlock (& mutex);
 }
@@ -399,7 +410,6 @@ bool CDAudio::read_tag (const char * filename, VFSFile & file, Tuple & tuple,
         tuple.set_int (Tuple::Track, trackno);
         tuple.set_int (Tuple::Length, calculate_track_length
          (trackinfo[trackno].startlsn, trackinfo[trackno].endlsn));
-        tuple.set_int (Tuple::Channels, 2);
 
         if (trackinfo[trackno].name)
             tuple.set_str (Tuple::Title, trackinfo[trackno].name);
@@ -599,6 +609,7 @@ static bool scan_cd ()
 
     if (!cdtext_was_available)
     {
+#ifdef HAVE_LIBCDDB
         /* initialize de cddb subsystem */
         cddb_conn_t *pcddb_conn = nullptr;
         cddb_disc_t *pcddb_disc = nullptr;
@@ -736,6 +747,7 @@ static bool scan_cd ()
 
         if (pcddb_conn != nullptr)
             cddb_destroy (pcddb_conn);
+#endif /* HAVE_LIBCDDB */
     }
 
     return true;

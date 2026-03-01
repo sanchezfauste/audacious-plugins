@@ -23,21 +23,15 @@
 
 #include "ffaudio-stdinc.h"
 
-#include <pthread.h>
+#include <limits.h>
+#include <stdio.h>
+#include <string.h>
 
 #include <audacious/audtag.h>
 #include <libaudcore/audstrings.h>
 #include <libaudcore/i18n.h>
 #include <libaudcore/multihash.h>
 #include <libaudcore/runtime.h>
-
-#if CHECK_LIBAVFORMAT_VERSION (57, 33, 100, 57, 5, 0)
-#define ALLOC_CONTEXT 1
-#endif
-
-#if CHECK_LIBAVCODEC_VERSION (57, 37, 100, 57, 16, 0)
-#define SEND_PACKET 1
-#endif
 
 class FFaudio : public InputPlugin
 {
@@ -56,13 +50,13 @@ public:
         .with_exts (exts)
         .with_mimes (mimes)) {}
 
-    bool init ();
-    void cleanup ();
+    bool init () override;
+    void cleanup () override;
 
-    bool is_our_file (const char * filename, VFSFile & file);
-    bool read_tag (const char * filename, VFSFile & file, Tuple & tuple, Index<char> * image);
-    bool write_tuple (const char * filename, VFSFile & file, const Tuple & tuple);
-    bool play (const char * filename, VFSFile & file);
+    bool is_our_file (const char * filename, VFSFile & file) override;
+    bool read_tag (const char * filename, VFSFile & file, Tuple & tuple, Index<char> * image) override;
+    bool write_tuple (const char * filename, VFSFile & file, const Tuple & tuple) override;
+    bool play (const char * filename, VFSFile & file) override;
 };
 
 EXPORT FFaudio aud_plugin_instance;
@@ -82,80 +76,39 @@ struct ScopedContext
 
     ScopedContext (const CodecInfo & cinfo)
     {
-#ifdef ALLOC_CONTEXT
         ptr = avcodec_alloc_context3 (cinfo.codec);
         avcodec_parameters_to_context (ptr, cinfo.stream->codecpar);
-#else
-        ptr = cinfo.stream->codec;
-#endif
+        ptr->pkt_timebase = cinfo.stream->time_base;
     }
 
-#ifdef ALLOC_CONTEXT
     ~ScopedContext () { avcodec_free_context (& ptr); }
-#else
-    ~ScopedContext () { avcodec_close (ptr); }
-#endif
 };
 
-struct ScopedPacket : public AVPacket
+struct ScopedPacket
 {
-    ScopedPacket () : AVPacket ()
-        { av_init_packet (this); }
+    AVPacket * ptr;
+    AVPacket * operator-> () { return ptr; }
 
-#if CHECK_LIBAVCODEC_VERSION (55, 25, 100, 55, 16, 0)
-    ~ScopedPacket () { av_packet_unref (this); }
-#else
-    ~ScopedPacket () { av_free_packet (this); }
-#endif
+    ScopedPacket () { ptr = av_packet_alloc (); }
+    ~ScopedPacket () { av_packet_free (& ptr); }
+
+    void clear ()
+    {
+        av_packet_free (& ptr);
+        ptr = av_packet_alloc ();
+    }
 };
 
 struct ScopedFrame
 {
-#if CHECK_LIBAVCODEC_VERSION (55, 45, 101, 55, 28, 1)
     AVFrame * ptr = av_frame_alloc ();
-#else
-    AVFrame * ptr = avcodec_alloc_frame ();
-#endif
-
     AVFrame * operator-> () { return ptr; }
-
-#if CHECK_LIBAVCODEC_VERSION (55, 45, 101, 55, 28, 1)
     ~ScopedFrame () { av_frame_free (& ptr); }
-#elif CHECK_LIBAVCODEC_VERSION (54, 59, 100, 54, 28, 0)
-    ~ScopedFrame () { avcodec_free_frame (& ptr); }
-#else
-    ~ScopedFrame () { av_free (ptr); }
-#endif
 };
 
 static SimpleHash<String, AVInputFormat *> extension_dict;
 
 static void create_extension_dict ();
-
-#if ! CHECK_LIBAVCODEC_VERSION(58, 9, 100, 255, 255, 255)
-static int lockmgr (void * * mutexp, enum AVLockOp op)
-{
-    switch (op)
-    {
-    case AV_LOCK_CREATE:
-        * mutexp = new pthread_mutex_t;
-        pthread_mutex_init ((pthread_mutex_t *) * mutexp, nullptr);
-        break;
-    case AV_LOCK_OBTAIN:
-        pthread_mutex_lock ((pthread_mutex_t *) * mutexp);
-        break;
-    case AV_LOCK_RELEASE:
-        pthread_mutex_unlock ((pthread_mutex_t *) * mutexp);
-        break;
-    case AV_LOCK_DESTROY:
-        pthread_mutex_destroy ((pthread_mutex_t *) * mutexp);
-        delete (pthread_mutex_t *) * mutexp;
-        break;
-    }
-
-    return 0;
-}
-#endif
 
 static void ffaudio_log_cb (void * avcl, int av_level, const char * fmt, va_list va)
 {
@@ -191,27 +144,14 @@ static void ffaudio_log_cb (void * avcl, int av_level, const char * fmt, va_list
 
 bool FFaudio::init ()
 {
-#if ! CHECK_LIBAVFORMAT_VERSION(58, 9, 100, 255, 255, 255)
-    av_register_all();
-#endif
-#if ! CHECK_LIBAVCODEC_VERSION(58, 9, 100, 255, 255, 255)
-    av_lockmgr_register (lockmgr);
-#endif
-
     create_extension_dict ();
-
     av_log_set_callback (ffaudio_log_cb);
-
     return true;
 }
 
 void FFaudio::cleanup ()
 {
     extension_dict.clear ();
-
-#if ! CHECK_LIBAVCODEC_VERSION(58, 9, 100, 255, 255, 255)
-    av_lockmgr_register (nullptr);
-#endif
 }
 
 static int log_result (const char * func, int ret)
@@ -233,12 +173,8 @@ static int log_result (const char * func, int ret)
 static void create_extension_dict ()
 {
     AVInputFormat * f;
-#if CHECK_LIBAVFORMAT_VERSION(58, 9, 100, 255, 255, 255)
     void * iter = nullptr;
     while ((f = const_cast<AVInputFormat *> (av_demuxer_iterate (& iter))))
-#else
-    for (f = av_iformat_next (nullptr); f; f = av_iformat_next (f))
-#endif
     {
         if (! f->extensions)
             continue;
@@ -249,6 +185,11 @@ static void create_extension_dict ()
         for (auto & ext : extlist)
             extension_dict.add (ext, std::move (f));
     }
+
+    /* FFmpeg has two decoders for Musepack files. Since the SV8 format
+     * may also use the mpc extension, our 1:1 mapping won't work here.
+     * Rely on content probing as workaround. */
+    extension_dict.remove (String ("mpc"));
 }
 
 static AVInputFormat * get_format_by_extension (const char * name)
@@ -288,7 +229,7 @@ static AVInputFormat * get_format_by_content (const char * name, VFSFile & file)
         AVProbeData d = {name, buf, filled};
         score = target;
 
-        f = av_probe_input_format2 (& d, true, & score);
+        f = (AVInputFormat *) av_probe_input_format2 (& d, true, & score);
         if (f)
             break;
 
@@ -356,12 +297,9 @@ static bool find_codec (AVFormatContext * c, CodecInfo * cinfo)
     {
         AVStream * stream = c->streams[i];
 
-#ifndef ALLOC_CONTEXT
-#define codecpar codec
-#endif
         if (stream && stream->codecpar && stream->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
         {
-            AVCodec * codec = avcodec_find_decoder (stream->codecpar->codec_id);
+            AVCodec * codec = (AVCodec *) avcodec_find_decoder (stream->codecpar->codec_id);
 
             if (codec)
             {
@@ -372,7 +310,6 @@ static bool find_codec (AVFormatContext * c, CodecInfo * cinfo)
                 return true;
             }
         }
-#undef codecpar
     }
 
     return false;
@@ -397,11 +334,16 @@ static const struct {
     {Tuple::String, Tuple::Genre, {"genre", "WM/Genre", nullptr}},
     {Tuple::String, Tuple::Comment, {"comment", nullptr}},
     {Tuple::String, Tuple::Composer, {"composer", nullptr}},
+    {Tuple::String, Tuple::AlbumGain, {"replaygain_album_gain", nullptr}},
+    {Tuple::String, Tuple::AlbumPeak, {"replaygain_album_peak", nullptr}},
+    {Tuple::String, Tuple::TrackGain, {"replaygain_track_gain", nullptr}},
+    {Tuple::String, Tuple::TrackPeak, {"replaygain_track_peak", nullptr}},
     {Tuple::Int, Tuple::Year, {"year", "WM/Year", "date", nullptr}},
     {Tuple::Int, Tuple::Track, {"track", "WM/TrackNumber", nullptr}},
+    {Tuple::Int, Tuple::Disc, {"disc", "WM/PartOfSet", nullptr}},
 };
 
-static void read_metadata_dict (Tuple & tuple, AVDictionary * dict)
+static void read_metadata_dict (Tuple & tuple, const AVDictionary * dict)
 {
     for (auto & meta : metaentries)
     {
@@ -412,7 +354,11 @@ static void read_metadata_dict (Tuple & tuple, AVDictionary * dict)
 
         if (entry && entry->value)
         {
-            if (meta.ttype == Tuple::String)
+            if (meta.field == Tuple::AlbumGain || meta.field == Tuple::TrackGain)
+                tuple.set_gain (meta.field, Tuple::GainDivisor, entry->value);
+            else if (meta.field == Tuple::AlbumPeak || meta.field == Tuple::TrackPeak)
+                tuple.set_gain (meta.field, Tuple::PeakDivisor, entry->value);
+            else if (meta.ttype == Tuple::String)
                 tuple.set_str (meta.field, entry->value);
             else if (meta.ttype == Tuple::Int)
                 tuple.set_int (meta.field, atoi (entry->value));
@@ -432,8 +378,10 @@ bool FFaudio::read_tag (const char * filename, VFSFile & file, Tuple & tuple, In
     if (! find_codec (ic.get (), & cinfo))
         return false;
 
-    tuple.set_int (Tuple::Length, ic->duration / 1000);
-    tuple.set_int (Tuple::Bitrate, ic->bit_rate / 1000);
+    if (ic->duration > 0 && ic->duration / 1000 <= INT_MAX)
+        tuple.set_int (Tuple::Length, ic->duration / 1000);
+    if (ic->bit_rate > 0 && ic->bit_rate / 1000 <= INT_MAX)
+        tuple.set_int (Tuple::Bitrate, ic->bit_rate / 1000);
 
     if (cinfo.codec->long_name)
         tuple.set_str (Tuple::Codec, cinfo.codec->long_name);
@@ -446,7 +394,6 @@ bool FFaudio::read_tag (const char * filename, VFSFile & file, Tuple & tuple, In
     if (! file.fseek (0, VFS_SEEK_SET))
         audtag::read_tag (file, tuple, image);
 
-#if CHECK_LIBAVFORMAT_VERSION (54, 2, 100, 54, 2, 0)
     if (image && ! image->len ())
     {
         for (unsigned i = 0; i < ic->nb_streams; i ++)
@@ -459,7 +406,6 @@ bool FFaudio::read_tag (const char * filename, VFSFile & file, Tuple & tuple, In
             }
         }
     }
-#endif
 
     return true;
 }
@@ -519,9 +465,15 @@ bool FFaudio::play (const char * filename, VFSFile & file)
     if (! convert_format (context->sample_fmt, out_fmt, planar))
         return false;
 
+#if CHECK_LIBAVCODEC_VERSION(59, 37, 100)
+    int channels = context->ch_layout.nb_channels;
+#else
+    int channels = context->channels;
+#endif
+
     /* Open audio output */
     set_stream_bitrate(ic->bit_rate);
-    open_audio(out_fmt, context->sample_rate, context->channels);
+    open_audio(out_fmt, context->sample_rate, channels);
 
     int errcount = 0;
     bool eof = false;
@@ -537,18 +489,20 @@ bool FFaudio::play (const char * filename, VFSFile & file)
             if (LOG (av_seek_frame, ic.get (), -1, (int64_t) seek_value *
              AV_TIME_BASE / 1000, AVSEEK_FLAG_ANY) >= 0)
                 errcount = 0;
-
-            seek_value = -1;
         }
 
         /* Read next frame (or more) of data */
         ScopedPacket pkt;
-        int ret = LOG (av_read_frame, ic.get (), & pkt);
+        int ret = LOG (av_read_frame, ic.get (), pkt.ptr);
 
         if (ret < 0)
         {
             if (ret == (int) AVERROR_EOF)
+            {
+                /* On EOF, send an empty packet to "flush" the decoder */
+                pkt.clear ();
                 eof = true;
+            }
             else if (++ errcount > 4)
                 return false;
             else
@@ -559,53 +513,22 @@ bool FFaudio::play (const char * filename, VFSFile & file)
             errcount = 0;
 
             /* Ignore any other substreams */
-            if (pkt.stream_index != cinfo.stream_idx)
+            if (pkt->stream_index != cinfo.stream_idx)
                 continue;
         }
 
         /* Decode and play packet/frame */
-        /* On EOF, send an empty packet to "flush" the decoder */
-        /* Otherwise, make a mutable (shallow) copy of the real packet */
-        AVPacket tmp;
-        if (eof) {
-            tmp = AVPacket ();
-            av_init_packet (& tmp);
-        }
-        else
-            tmp = pkt;
-
-#ifdef SEND_PACKET
-        if ((ret = LOG (avcodec_send_packet, context.ptr, & tmp)) < 0)
+        if (LOG (avcodec_send_packet, context.ptr, pkt.ptr) < 0)
             return false; /* defensive, errors not expected here */
-#endif
 
         while (! check_stop ())
         {
             ScopedFrame frame;
 
-#ifdef SEND_PACKET
-            if ((ret = LOG (avcodec_receive_frame, context.ptr, frame.ptr)) < 0)
-                break; /* read next packet (continue past errors) */
-#else
-            int decoded = 0;
-            int len = LOG (avcodec_decode_audio4, context.ptr, frame.ptr, & decoded, & tmp);
-
-            if (len < 0)
+            if (LOG (avcodec_receive_frame, context.ptr, frame.ptr) < 0)
                 break; /* read next packet (continue past errors) */
 
-            tmp.size -= len;
-            tmp.data += len;
-
-            if (! decoded)
-            {
-                if (tmp.size > 0)
-                    continue; /* process more of current packet */
-
-                break; /* read next packet */
-            }
-#endif
-
-            int size = FMT_SIZEOF (out_fmt) * context->channels * frame->nb_samples;
+            int size = FMT_SIZEOF (out_fmt) * channels * frame->nb_samples;
 
             if (planar)
             {
@@ -613,7 +536,7 @@ bool FFaudio::play (const char * filename, VFSFile & file)
                     buf.resize (size);
 
                 audio_interlace ((const void * *) frame->data, out_fmt,
-                 context->channels, buf.begin (), frame->nb_samples);
+                 channels, buf.begin (), frame->nb_samples);
                 write_audio (buf.begin (), size);
             }
             else
@@ -645,8 +568,14 @@ const char * const FFaudio::exts[] = {
     /* atrac3 */
     "aa3", "oma",
 
+    /* Advanced Audio Coding */
+    "aac",
+
     /* MPEG 2/4 AC3 */
     "ac3",
+
+    /* CRI ADX */
+    "adx",
 
     /* monkey's audio */
     "ape",
@@ -658,16 +587,13 @@ const char * const FFaudio::exts[] = {
     "vqf",
 
     /* MPEG-4 */
-    "m4a", "m4v", "mp4",
+    "m4a", "mp4",
 
     /* WAV (there are some WAV formats sndfile can't handle) */
     "wav",
 
     /* Handle OGG streams (FLAC/Vorbis etc.) */
     "ogg", "oga",
-
-    /* Opus */
-    "opus",
 
     /* Speex */
     "spx",
@@ -678,12 +604,17 @@ const char * const FFaudio::exts[] = {
     /* WebM */
     "webm",
 
+    /* Matroska */
+    "mka", "mkv",
+
     /* end of table */
     nullptr
 };
 
 const char * const FFaudio::mimes[] = {
     "application/ogg",
+    "audio/aac",
     "audio/mp4",
+    "audio/ogg",
     nullptr
 };

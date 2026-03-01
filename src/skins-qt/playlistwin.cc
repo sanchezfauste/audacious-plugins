@@ -35,10 +35,8 @@
 #include <libaudcore/tuple.h>
 
 #include "actions-mainwin.h"
-#include "dnd.h"
 #include "drag-handle.h"
 #include "menus.h"
-#include "plugin.h"
 #include "skins_cfg.h"
 #include "main.h"
 #include "playlistwin.h"
@@ -48,6 +46,8 @@
 #include "textbox.h"
 #include "window.h"
 #include "view.h"
+
+#include "../ui-common/qt-compat.h"
 
 #define PLAYLISTWIN_MIN_WIDTH           MAINWIN_WIDTH
 #define PLAYLISTWIN_MIN_HEIGHT          MAINWIN_HEIGHT
@@ -66,9 +66,9 @@ public:
      config.playlist_height, shaded) {}
 
 private:
-    void draw (QPainter & cr);
-    bool button_press (QMouseEvent * event);
-    bool scroll (QWheelEvent * event);
+    void draw (QPainter & cr) override;
+    bool button_press (QMouseEvent * event) override;
+    bool scroll (QWheelEvent * event) override;
 };
 
 Window * playlistwin;
@@ -90,7 +90,6 @@ static Button * button_add, * button_sub, * button_sel, * button_misc, * button_
 
 static int resize_base_width, resize_base_height;
 //static int drop_position;
-static bool song_changed;
 
 static void update_info ()
 {
@@ -224,7 +223,7 @@ bool PlWindow::scroll (QWheelEvent * event)
 bool PlWindow::button_press (QMouseEvent * event)
 {
     if (event->button () == Qt::LeftButton &&
-     event->type () == QEvent::MouseButtonDblClick && event->y () < 14)
+     event->type () == QEvent::MouseButtonDblClick && QtCompat::y (event) < 14)
     {
         playlistwin_shade_toggle ();
         return true;
@@ -232,7 +231,7 @@ bool PlWindow::button_press (QMouseEvent * event)
 
     if (event->button () == Qt::RightButton && event->type () == QEvent::MouseButtonPress)
     {
-        menu_popup (UI_MENU_PLAYLIST, event->globalX (), event->globalY (), false, false);
+        menu_popup (UI_MENU_PLAYLIST, QtCompat::globalX (event), QtCompat::globalY (event), false, false);
         return true;
     }
 
@@ -463,10 +462,10 @@ static void playlistwin_create_widgets ()
 void PlWindow::draw (QPainter & cr)
 {
     if (is_shaded ())
-        skin_draw_playlistwin_shaded (cr, config.playlist_width, true);
+        skin_draw_playlistwin_shaded (cr, config.playlist_width, is_focused ());
     else
         skin_draw_playlistwin_frame (cr, config.playlist_width,
-         config.playlist_height, true);
+         config.playlist_height, is_focused ());
 }
 
 static void playlistwin_create_window ()
@@ -475,6 +474,7 @@ static void playlistwin_create_window ()
 
     playlistwin = new PlWindow (shaded);
     playlistwin->setWindowTitle (_("Audacious Playlist Editor"));
+    playlistwin->setWindowRole ("playlist");
 
 #if 0
     GtkWidget * w = playlistwin->gtk ();
@@ -492,12 +492,6 @@ static void update_cb (void *, void *)
 {
     playlistwin_list->refresh ();
 
-    if (song_changed)
-    {
-        playlistwin_list->set_focused (Playlist::active_playlist ().get_position ());
-        song_changed = false;
-    }
-
     update_info ();
     update_rollup_text ();
 }
@@ -509,10 +503,11 @@ static void follow_cb (void * data, void *)
 
     int row = list.get_position ();
     if (row >= 0)
+    {
         list.select_entry (row, true);
-
-    if (list == Playlist::active_playlist ())
-        song_changed = true;
+        if (list == Playlist::active_playlist ())
+            playlistwin_list->set_focused (row);
+    }
 }
 
 void playlistwin_create ()
@@ -522,8 +517,6 @@ void playlistwin_create ()
 
     update_info ();
     update_rollup_text ();
-
-    song_changed = false;
 
     hook_associate ("playlist position", follow_cb, nullptr);
     hook_associate ("playlist activate", update_cb, nullptr);

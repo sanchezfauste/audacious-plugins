@@ -42,7 +42,6 @@
 #include "dnd.h"
 #include "drag-handle.h"
 #include "menus.h"
-#include "plugin.h"
 #include "skins_cfg.h"
 #include "main.h"
 #include "playlistwin.h"
@@ -70,9 +69,9 @@ public:
      config.playlist_height, shaded) {}
 
 private:
-    void draw (cairo_t * cr);
-    bool button_press (GdkEventButton * event);
-    bool scroll (GdkEventScroll * event);
+    void draw (cairo_t * cr) override;
+    bool button_press (GdkEventButton * event) override;
+    bool scroll (GdkEventScroll * event) override;
 };
 
 Window * playlistwin;
@@ -94,7 +93,6 @@ static Button * button_add, * button_sub, * button_sel, * button_misc, * button_
 
 static int resize_base_width, resize_base_height;
 static int drop_position;
-static bool song_changed;
 
 static void update_info ()
 {
@@ -244,7 +242,7 @@ bool PlWindow::button_press (GdkEventButton * event)
 
     if (event->button == 3 && event->type == GDK_BUTTON_PRESS)
     {
-        menu_popup (UI_MENU_PLAYLIST, event->x_root, event->y_root, false, false, 3, event->time);
+        menu_popup (UI_MENU_PLAYLIST, event->x_root, event->y_root, false, false, event);
         return true;
     }
 
@@ -326,7 +324,7 @@ static void button_add_cb (Button * button, GdkEventButton * event)
     playlistwin->getPosition (& xpos, & ypos);
     menu_popup (UI_MENU_PLAYLIST_ADD, xpos + 12 * config.scale,
      ypos + (config.playlist_height - 8) * config.scale, false, true,
-     event->button, event->time);
+     event);
 }
 
 static void button_sub_cb (Button * button, GdkEventButton * event)
@@ -335,7 +333,7 @@ static void button_sub_cb (Button * button, GdkEventButton * event)
     playlistwin->getPosition (& xpos, & ypos);
     menu_popup (UI_MENU_PLAYLIST_REMOVE, xpos + 40 * config.scale,
      ypos + (config.playlist_height - 8) * config.scale, false, true,
-     event->button, event->time);
+     event);
 }
 
 static void button_sel_cb (Button * button, GdkEventButton * event)
@@ -344,7 +342,7 @@ static void button_sel_cb (Button * button, GdkEventButton * event)
     playlistwin->getPosition (& xpos, & ypos);
     menu_popup (UI_MENU_PLAYLIST_SELECT, xpos + 68 * config.scale,
      ypos + (config.playlist_height - 8) * config.scale, false, true,
-     event->button, event->time);
+     event);
 }
 
 static void button_misc_cb (Button * button, GdkEventButton * event)
@@ -353,7 +351,7 @@ static void button_misc_cb (Button * button, GdkEventButton * event)
     playlistwin->getPosition (& xpos, & ypos);
     menu_popup (UI_MENU_PLAYLIST_SORT, xpos + 100 * config.scale,
      ypos + (config.playlist_height - 8) * config.scale, false, true,
-     event->button, event->time);
+     event);
 }
 
 static void button_list_cb (Button * button, GdkEventButton * event)
@@ -363,7 +361,7 @@ static void button_list_cb (Button * button, GdkEventButton * event)
     menu_popup (UI_MENU_PLAYLIST,
      xpos + (config.playlist_width - 12) * config.scale,
      ypos + (config.playlist_height - 8) * config.scale, true, true,
-     event->button, event->time);
+     event);
 }
 
 static void playlistwin_create_widgets ()
@@ -478,10 +476,10 @@ static void playlistwin_create_widgets ()
 void PlWindow::draw (cairo_t * cr)
 {
     if (is_shaded ())
-        skin_draw_playlistwin_shaded (cr, config.playlist_width, true);
+        skin_draw_playlistwin_shaded (cr, config.playlist_width, is_focused ());
     else
         skin_draw_playlistwin_frame (cr, config.playlist_width,
-         config.playlist_height, true);
+         config.playlist_height, is_focused ());
 }
 
 static void playlistwin_create_window ()
@@ -490,6 +488,7 @@ static void playlistwin_create_window ()
 
     playlistwin = new PlWindow (shaded);
     playlistwin->setWindowTitle (_("Audacious Playlist Editor"));
+    playlistwin->setWindowRole ("playlist");
 
     GtkWidget * w = playlistwin->gtk ();
     drag_dest_set (w);
@@ -505,12 +504,6 @@ static void update_cb (void *, void *)
 {
     playlistwin_list->refresh ();
 
-    if (song_changed)
-    {
-        playlistwin_list->set_focused (Playlist::active_playlist ().get_position ());
-        song_changed = false;
-    }
-
     update_info ();
     update_rollup_text ();
 }
@@ -522,10 +515,11 @@ static void follow_cb (void * data, void *)
 
     int row = list.get_position ();
     if (row >= 0)
+    {
         list.select_entry (row, true);
-
-    if (list == Playlist::active_playlist ())
-        song_changed = true;
+        if (list == Playlist::active_playlist ())
+            playlistwin_list->set_focused (row);
+    }
 }
 
 void playlistwin_create ()
@@ -535,8 +529,6 @@ void playlistwin_create ()
 
     update_info ();
     update_rollup_text ();
-
-    song_changed = false;
 
     hook_associate ("playlist position", follow_cb, nullptr);
     hook_associate ("playlist activate", update_cb, nullptr);

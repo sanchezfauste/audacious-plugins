@@ -32,7 +32,6 @@
 #include <libaudcore/vfs.h>
 
 #include <libopenmpt/libopenmpt.h>
-#include <libopenmpt/libopenmpt_stream_callbacks_file.h>
 
 class MPTWrap
 {
@@ -43,7 +42,7 @@ public:
     static constexpr int interp_windowed = 8;
 
     static constexpr int default_interpolator = interp_windowed;
-    static constexpr int default_stereo_separation = 70;
+    static constexpr int default_stereo_separation = 100;
 
     static constexpr ComboItem interpolators[] =
     {

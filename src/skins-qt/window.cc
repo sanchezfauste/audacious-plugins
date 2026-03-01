@@ -23,6 +23,8 @@
 #include "plugin.h"
 #include "skins_cfg.h"
 
+#include "../ui-common/qt-compat.h"
+
 void Window::apply_shape ()
 {
     QRegion * mask = m_is_shaded ? m_sshape.get () : m_shape.get ();
@@ -41,7 +43,7 @@ bool Window::button_press (QMouseEvent * event)
     if (m_is_moving)
         return true;
 
-    dock_move_start (m_id, event->globalX (), event->globalY ());
+    dock_move_start (m_id, QtCompat::globalX (event), QtCompat::globalY (event));
     m_is_moving = true;
     return true;
 }
@@ -60,7 +62,7 @@ bool Window::motion (QMouseEvent * event)
     if (! m_is_moving)
         return true;
 
-    dock_move (event->globalX (), event->globalY ());
+    dock_move (QtCompat::globalX (event), QtCompat::globalY (event));
     return true;
 }
 
@@ -68,6 +70,14 @@ bool Window::close ()
 {
     skins_close ();
     return true;
+}
+
+void Window::changeEvent (QEvent * event)
+{
+    if (event->type () == QEvent::ActivationChange)
+        config.active_titlebar_any ? dock_draw_all () : Window::queue_draw ();
+
+    QWidget::changeEvent (event);
 }
 
 Window::~Window ()
@@ -80,7 +90,10 @@ Window::Window (int id, int * x, int * y, int w, int h, bool shaded) :
     m_is_shaded (shaded)
 {
     if (id == WINDOW_MAIN)
-        setWindowFlags (Qt::Window | Qt::FramelessWindowHint);
+        // Qt::WindowMinimizeButtonHint is necessary on Windows
+        // to allow the window to be minimized via the taskbar
+        setWindowFlags (Qt::Window | Qt::FramelessWindowHint |
+                        Qt::WindowMinimizeButtonHint);
     else
         setWindowFlags (Qt::Dialog | Qt::FramelessWindowHint);
 
@@ -158,4 +171,9 @@ void Window::put_widget (bool shaded, Widget * widget, int x, int y)
 void Window::move_widget (bool shaded, Widget * widget, int x, int y)
 {
     widget->move (x * config.scale, y * config.scale);
+}
+
+bool Window::is_focused ()
+{
+    return config.active_titlebar_any ? dock_is_focused () : isActiveWindow ();
 }

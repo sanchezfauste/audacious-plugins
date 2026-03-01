@@ -24,9 +24,9 @@ public:
         .with_exts (exts)
         .with_mimes (mimes)) {}
 
-    bool is_our_file (const char * filename, VFSFile & file);
-    bool read_tag (const char * filename, VFSFile & file, Tuple & tuple, Index<char> * image);
-    bool play (const char * filename, VFSFile & file);
+    bool is_our_file (const char * filename, VFSFile & file) override;
+    bool read_tag (const char * filename, VFSFile & file, Tuple & tuple, Index<char> * image) override;
+    bool play (const char * filename, VFSFile & file) override;
 };
 
 EXPORT AACDecoder aud_plugin_instance;
@@ -49,7 +49,7 @@ const char * const AACDecoder::mimes[] = {"audio/aac", nullptr};
 /// \param num (out) number of audio frames in this ADTS frame
 /// \return size of the ADTS frame in bytes
 /// aac_parse_frames needs a buffer at least 8 bytes long
-int aac_parse_frame (unsigned char * buf, int *srate, int *num)
+static int aac_parse_frame (unsigned char * buf, int * srate, int * num)
 {
     int i = 0, sr, fl = 0;
     static int srates[] =
@@ -319,7 +319,14 @@ static void aac_seek (VFSFile & file, NeAACDecHandle dec, int time, int len,
     unsigned char chan;
     unsigned long rate;
 
-    if ((used = NeAACDecInit (dec, (unsigned char *) buf, * buflen, & rate, & chan)))
+    if ((used = NeAACDecInit (dec, (unsigned char *) buf, * buflen, & rate, & chan)) < 0)
+    {
+        AUDERR ("Failed to initialize AAC decoder.\n");
+        * buflen = 0;
+        return;
+    }
+
+    if (used)
     {
         * buflen -= used;
         memmove (buf, (char *) buf + used, * buflen);
@@ -388,7 +395,13 @@ bool AACDecoder::play (const char * filename, VFSFile & file)
 
     /* == START DECODING == */
 
-    if ((used = NeAACDecInit (decoder, buf, buflen, & samplerate, & channels)))
+    if ((used = NeAACDecInit (decoder, buf, buflen, & samplerate, & channels)) < 0)
+    {
+        AUDERR ("Failed to initialize AAC decoder.\n");
+        goto ERR_CLOSE_DECODER;
+    }
+
+    if (used)
     {
         buflen -= used;
         memmove (buf, buf + used, buflen);

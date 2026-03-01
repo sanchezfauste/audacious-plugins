@@ -40,7 +40,15 @@ public:
     ~Window ();
 
     void resize (int w, int h);
+#ifdef USE_GTK3
+    void set_shapes (cairo_region_t * shape, cairo_region_t * sshape);
+#else
     void set_shapes (GdkRegion * shape, GdkRegion * sshape);
+#endif
+    /* window-system focus for this one window */
+    bool is_focused_window () { return m_is_focused_window; }
+    /* logical focus, accounting for other windows */
+    bool is_focused ();
     bool is_shaded () { return m_is_shaded; }
     void set_shaded (bool shaded);
     void put_widget (bool shaded, Widget * widget, int x, int y);
@@ -48,27 +56,36 @@ public:
 
     void setWindowTitle (const char * title)
         { gtk_window_set_title ((GtkWindow *) gtk (), title); }
+    void setWindowRole (const char * role)
+        { gtk_window_set_role ((GtkWindow *) gtk (), role); }
     void getPosition (int * x, int * y)
         { gtk_window_get_position ((GtkWindow *) gtk (), x, y); }
     void move (int x, int y)
         { gtk_window_move ((GtkWindow *) gtk (), x, y); }
 
 protected:
-    void realize ();
-    bool keypress (GdkEventKey * event);  // in main.cc
-    bool button_press (GdkEventButton * event);
-    bool button_release (GdkEventButton * event);
-    bool motion (GdkEventMotion * event);
-    bool close ();
+    void realize () override;
+    bool keypress (GdkEventKey * event) override;  // in main.cc
+    bool button_press (GdkEventButton * event) override;
+    bool button_release (GdkEventButton * event) override;
+    bool motion (GdkEventMotion * event) override;
+    bool close () override;
 
 private:
+    static gboolean focus_cb (GtkWidget * widget, GdkEventFocus * event, Window * me);
+
     void apply_shape ();
 
     const int m_id;
     bool m_is_shaded = false;
     bool m_is_moving = false;
+    bool m_is_focused_window = false;
     GtkWidget * m_normal = nullptr, * m_shaded = nullptr;
+#ifdef USE_GTK3
+    SmartPtr<cairo_region_t, cairo_region_destroy> m_shape, m_sshape;
+#else
     SmartPtr<GdkRegion, gdk_region_destroy> m_shape, m_sshape;
+#endif
 };
 
 void dock_add_window (int id, Window * window, int * x, int * y, int w, int h);
@@ -77,5 +94,7 @@ void dock_set_size (int id, int w, int h);
 void dock_move_start (int id, int x, int y);
 void dock_move (int x, int y);
 void dock_change_scale (int old_scale, int new_scale);
+void dock_draw_all ();
+bool dock_is_focused ();
 
 #endif

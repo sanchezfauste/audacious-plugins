@@ -33,7 +33,9 @@ void Window::apply_shape ()
 
 void Window::realize ()
 {
+#ifndef USE_GTK3
     gdk_window_set_back_pixmap (gtk_widget_get_window (gtk ()), nullptr, false);
+#endif
     apply_shape ();
 }
 
@@ -108,11 +110,13 @@ Window::Window (int id, int * x, int * y, int w, int h, bool shaded) :
      GDK_BUTTON_RELEASE_MASK | GDK_POINTER_MOTION_MASK | GDK_SCROLL_MASK);
     gtk_window_add_accel_group ((GtkWindow *) window, menu_get_accel_group ());
 
+#ifndef USE_GTK3
     /* We set None as the background pixmap in order to avoid flickering.
      * Setting a blank GtkStyle prevents GTK 2.x from overriding this. */
     GtkStyle * style = gtk_style_new ();
     gtk_widget_set_style (window, style);
     g_object_unref (style);
+#endif
 
     set_input (window);
     set_drawable (window);
@@ -132,6 +136,9 @@ Window::Window (int id, int * x, int * y, int w, int h, bool shaded) :
         gtk_container_add ((GtkContainer *) window, m_normal);
 
     dock_add_window (id, this, x, y, w, h);
+
+    g_signal_connect (window, "focus-out-event", (GCallback) focus_cb, this);
+    g_signal_connect (window, "focus-in-event", (GCallback) focus_cb, this);
 }
 
 void Window::resize (int w, int h)
@@ -144,7 +151,11 @@ void Window::resize (int w, int h)
     dock_set_size (m_id, w, h);
 }
 
+#ifdef USE_GTK3
+void Window::set_shapes (cairo_region_t * shape, cairo_region_t * sshape)
+#else
 void Window::set_shapes (GdkRegion * shape, GdkRegion * sshape)
+#endif
 {
     m_shape.capture (shape);
     m_sshape.capture (sshape);
@@ -181,4 +192,22 @@ void Window::move_widget (bool shaded, Widget * widget, int x, int y)
 {
     GtkWidget * fixed = shaded ? m_shaded : m_normal;
     gtk_fixed_move ((GtkFixed *) fixed, widget->gtk (), x * config.scale, y * config.scale);
+}
+
+bool Window::is_focused ()
+{
+    return config.active_titlebar_any ? dock_is_focused () : m_is_focused_window;
+}
+
+/* static */
+gboolean Window::focus_cb (GtkWidget * widget, GdkEventFocus * event, Window * me)
+{
+    me->m_is_focused_window = event->in;
+
+    if (config.active_titlebar_any)
+        dock_draw_all ();
+    else
+        me->queue_draw ();
+
+    return false;
 }

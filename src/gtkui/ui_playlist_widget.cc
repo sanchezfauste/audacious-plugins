@@ -17,10 +17,9 @@
  * the use of this software.
  */
 
-#include <string.h>
-
 #include <gtk/gtk.h>
 
+#define AUD_GLIB_INTEGRATION
 #include <libaudcore/audstrings.h>
 #include <libaudcore/i18n.h>
 #include <libaudcore/mainloop.h>
@@ -50,7 +49,12 @@ static const GType pw_col_types[PW_COLS] =
     G_TYPE_STRING,  // file name
     G_TYPE_STRING,  // custom title
     G_TYPE_STRING,  // bitrate
-    G_TYPE_STRING   // comment
+    G_TYPE_STRING,  // comment
+    G_TYPE_STRING,  // publisher
+    G_TYPE_STRING,  // catalog number
+    G_TYPE_STRING,  // disc
+    G_TYPE_STRING,  // file created
+    G_TYPE_STRING,  // file modified
 };
 
 static const int pw_col_min_widths[PW_COLS] = {
@@ -68,7 +72,12 @@ static const int pw_col_min_widths[PW_COLS] = {
     10,  // file name
     10,  // custom title
     3,   // bitrate
-    10   // comment
+    10,  // comment,
+    10,  // publisher
+    3,   // catalog number
+    2,   // disc
+    10,  // file created
+    10,  // file modified
 };
 
 static const bool pw_col_label[PW_COLS] = {
@@ -86,7 +95,12 @@ static const bool pw_col_label[PW_COLS] = {
     true,   // file name
     true,   // custom title
     false,  // bitrate
-    true    // comment
+    true,   // comment
+    true,   // publisher
+    false,  // catalog number
+    false,  // disc
+    true,   // file created
+    true,   // file modified
 };
 
 static const Playlist::SortType pw_col_sort_types[PW_COLS] = {
@@ -104,7 +118,12 @@ static const Playlist::SortType pw_col_sort_types[PW_COLS] = {
     Playlist::Filename,        // file name
     Playlist::FormattedTitle,  // custom title
     Playlist::n_sort_types,    // bitrate
-    Playlist::Comment          // comment
+    Playlist::Comment,         // comment
+    Playlist::Publisher,       // publisher
+    Playlist::CatalogNum,      // catalog number
+    Playlist::Disc,            // disc
+    Playlist::FileCreated,     // file created
+    Playlist::FileModified,    // file modified
 };
 
 struct PlaylistWidgetData
@@ -114,7 +133,10 @@ struct PlaylistWidgetData
     QueuedFunc popup_timer;
 
     void show_popup ()
-        { audgui_infopopup_show (list, popup_pos); }
+    {
+        GtkWindow * parent = get_main_window ();
+        audgui_infopopup_show (parent, list, popup_pos);
+    }
 };
 
 static void set_int_from_tuple (GValue * value, const Tuple & tuple, Tuple::Field field)
@@ -122,6 +144,21 @@ static void set_int_from_tuple (GValue * value, const Tuple & tuple, Tuple::Fiel
     int i = tuple.get_int (field);
     if (i > 0)
         g_value_take_string (value, g_strdup_printf ("%d", i));
+    else
+        g_value_set_string (value, "");
+}
+
+static void set_datetime_from_tuple (GValue * value, const Tuple & tuple, Tuple::Field field)
+{
+    int64_t t = tuple.get_int64 (field);
+
+    if (t > 0)
+    {
+        GDateTime * dt = g_date_time_new_from_unix_local (t);
+        CharPtr str (g_date_time_format (dt, "%x %X")); // locale-aware date+time format
+        g_value_set_string (value, str);
+        g_date_time_unref (dt);
+    }
     else
         g_value_set_string (value, "");
 }
@@ -147,6 +184,17 @@ static void set_length (GValue * value, const Tuple & tuple)
         g_value_set_string (value, str_format_time (len));
     else
         g_value_set_string (value, "");
+}
+
+static void set_filename (GValue * value, const Tuple & tuple)
+{
+    String basename = tuple.get_str (Tuple::Basename);
+    String suffix = tuple.get_str (Tuple::Suffix);
+
+    if (suffix)
+        g_value_set_string (value, str_concat ({basename ? basename : "", ".", suffix}));
+    else
+        g_value_set_string (value, basename);
 }
 
 static void get_value (void * user, int row, int column, GValue * value)
@@ -195,7 +243,7 @@ static void get_value (void * user, int row, int column, GValue * value)
         set_length (value, tuple);
         break;
     case PW_COL_FILENAME:
-        set_string_from_tuple (value, tuple, Tuple::Basename);
+        set_filename (value, tuple);
         break;
     case PW_COL_PATH:
         set_string_from_tuple (value, tuple, Tuple::Path);
@@ -208,6 +256,21 @@ static void get_value (void * user, int row, int column, GValue * value)
         break;
     case PW_COL_COMMENT:
         set_string_from_tuple (value, tuple, Tuple::Comment);
+        break;
+    case PW_COL_PUBLISHER:
+        set_string_from_tuple (value, tuple, Tuple::Publisher);
+        break;
+    case PW_COL_CATALOG_NUM:
+        set_string_from_tuple (value, tuple, Tuple::CatalogNum);
+        break;
+    case PW_COL_DISC:
+        set_int_from_tuple (value, tuple, Tuple::Disc);
+        break;
+    case PW_COL_FILE_CREATED:
+        set_datetime_from_tuple (value, tuple, Tuple::FileCreated);
+        break;
+    case PW_COL_FILE_MODIFIED:
+        set_datetime_from_tuple (value, tuple, Tuple::FileModified);
         break;
     }
 }
@@ -241,7 +304,7 @@ static void activate_row (void * user, int row)
 
 static void right_click (void * user, GdkEventButton * event)
 {
-    popup_menu_rclick (event->button, event->time);
+    popup_menu_rclick ((const GdkEvent *) event);
 }
 
 static void shift_rows (void * user, int row, int before)
@@ -402,7 +465,8 @@ GtkWidget * ui_playlist_widget_new (Playlist playlist)
         audgui_list_add_column (list, pw_col_label[n] ? _(pw_col_names[n]) :
          nullptr, i, pw_col_types[n], pw_col_min_widths[n]);
 
-        if (pw_col_sort_types[n] < Playlist::n_sort_types)
+        if (aud_get_bool ("gtkui", "playlist_headers_sortable") &&
+            pw_col_sort_types[n] < Playlist::n_sort_types)
         {
             auto column = gtk_tree_view_get_column ((GtkTreeView *) list, i);
             auto sort_type_ptr = aud::to_ptr (pw_col_sort_types[n]);

@@ -39,6 +39,11 @@
 #include <ne_uri.h>
 #include <ne_utils.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#include <wincrypt.h>
+#endif
+
 #include "cert_verification.h"
 
 #define NEON_NETBLKSIZE     (4096)
@@ -98,10 +103,10 @@ public:
 
     constexpr NeonTransport () : TransportPlugin (info, neon_schemes) {}
 
-    bool init ();
-    void cleanup ();
+    bool init () override;
+    void cleanup () override;
 
-    VFSImpl * fopen (const char * path, const char * mode, String & error);
+    VFSImpl * fopen (const char * path, const char * mode, String & error) override;
 };
 
 EXPORT NeonTransport aud_plugin_instance;
@@ -128,23 +133,23 @@ class NeonFile : public VFSImpl
 {
 public:
     NeonFile (const char * url);
-    ~NeonFile ();
+    ~NeonFile () override;
 
     int open_handle (int64_t startbyte, String * error = nullptr);
 
 protected:
-    int64_t fread (void * ptr, int64_t size, int64_t nmemb);
-    int fseek (int64_t offset, VFSSeekType whence);
+    int64_t fread (void * ptr, int64_t size, int64_t nmemb) override;
+    int fseek (int64_t offset, VFSSeekType whence) override;
 
-    int64_t ftell ();
-    int64_t fsize ();
-    bool feof ();
+    int64_t ftell () override;
+    int64_t fsize () override;
+    bool feof () override;
 
-    int64_t fwrite (const void * ptr, int64_t size, int64_t nmemb);
-    int ftruncate (int64_t length);
-    int fflush ();
+    int64_t fwrite (const void * ptr, int64_t size, int64_t nmemb) override;
+    int ftruncate (int64_t length) override;
+    int fflush () override;
 
-    String get_metadata (const char * field);
+    String get_metadata (const char * field) override;
 
 private:
     String m_url;               /* The URL, as passed to us */
@@ -210,20 +215,15 @@ NeonFile::~NeonFile ()
     ne_uri_free (& m_purl);
 }
 
-static bool neon_strcmp (const char * str, const char * cmp)
-{
-    return ! g_ascii_strncasecmp (str, cmp, strlen (cmp));
-}
-
 static void add_icy (struct icy_metadata * m, const char * name, const char * value)
 {
-    if (neon_strcmp (name, "StreamTitle"))
+    if (str_has_prefix_nocase (name, "StreamTitle"))
     {
         AUDDBG ("Found StreamTitle: %s\n", value);
         m->stream_title = String (str_to_utf8 (value, -1));
     }
 
-    if (neon_strcmp (name, "StreamUrl"))
+    if (str_has_prefix_nocase (name, "StreamUrl"))
     {
         AUDDBG ("Found StreamUrl: %s\n", value);
         m->stream_url = String (str_to_utf8 (value, -1));
@@ -370,7 +370,7 @@ void NeonFile::handle_headers ()
     {
         AUDDBG ("HEADER: %s: %s\n", name, value);
 
-        if (neon_strcmp (name, "accept-ranges"))
+        if (str_has_prefix_nocase (name, "accept-ranges"))
         {
             /* The server advertises range capability. we need "bytes" */
             if (strstr (value, "bytes"))
@@ -379,7 +379,7 @@ void NeonFile::handle_headers ()
                 m_can_ranges = true;
             }
         }
-        else if (neon_strcmp (name, "content-length"))
+        else if (str_has_prefix_nocase (name, "content-length"))
         {
             /* The server sent us the content length. Parse and store. */
             char * endptr;
@@ -394,13 +394,13 @@ void NeonFile::handle_headers ()
             else
                 AUDERR ("Invalid content length header: %s\n", value);
         }
-        else if (neon_strcmp (name, "content-type"))
+        else if (str_has_prefix_nocase (name, "content-type"))
         {
             /* The server sent us a content type. Save it for later */
             AUDDBG ("Content-Type: %s\n", value);
             m_icy_metadata.stream_contenttype = String (str_to_utf8 (value, -1));
         }
-        else if (neon_strcmp (name, "icy-metaint"))
+        else if (str_has_prefix_nocase (name, "icy-metaint"))
         {
             /* The server sent us a ICY metaint header. Parse and store. */
             char * endptr;
@@ -416,13 +416,13 @@ void NeonFile::handle_headers ()
             else
                 AUDERR ("Invalid ICY MetaInt header: %s\n", value);
         }
-        else if (neon_strcmp (name, "icy-name"))
+        else if (str_has_prefix_nocase (name, "icy-name"))
         {
             /* The server sent us a ICY name. Save it for later */
             AUDDBG ("ICY stream name: %s\n", value);
             m_icy_metadata.stream_name = String (value);
         }
-        else if (neon_strcmp (name, "icy-br"))
+        else if (str_has_prefix_nocase (name, "icy-br"))
         {
             /* The server sent us a bitrate. We might want to use it. */
             AUDDBG ("ICY bitrate: %d\n", atoi (value));
@@ -549,6 +549,30 @@ int NeonFile::open_request (int64_t startbyte, String * error)
     return -1;
 }
 
+#ifdef _WIN32
+static void trust_win32_root_certs (ne_session * m_session)
+{
+    auto store = CertOpenSystemStore (0, "ROOT");
+    if (! store)
+        return;
+
+    const CERT_CONTEXT * ctx = NULL;
+    while ((ctx = CertEnumCertificatesInStore (store, ctx)))
+    {
+        char * enc = g_base64_encode (ctx->pbCertEncoded, ctx->cbCertEncoded);
+        ne_ssl_certificate * cert = ne_ssl_cert_import (enc);
+        if (cert)
+        {
+            ne_ssl_trust_cert (m_session, cert);
+            ne_ssl_cert_free (cert);
+        }
+        g_free (enc);
+    }
+
+    CertCloseStore (store, 0);
+}
+#endif
+
 int NeonFile::open_handle (int64_t startbyte, String * error)
 {
     int ret;
@@ -633,6 +657,9 @@ int NeonFile::open_handle (int64_t startbyte, String * error)
         if (! strcmp ("https", m_purl.scheme))
         {
             ne_ssl_trust_default_ca (m_session);
+#ifdef _WIN32
+            trust_win32_root_certs (m_session);
+#endif
             ne_ssl_set_verify (m_session,
              neon_vfs_verify_environment_ssl_certs, m_session);
         }

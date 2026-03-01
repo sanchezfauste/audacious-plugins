@@ -24,7 +24,6 @@
 #include <assert.h>
 #include <pthread.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include <libaudcore/audstrings.h>
 #include <libaudcore/i18n.h>
@@ -38,6 +37,7 @@ class SIDPlugin : public InputPlugin
 {
 public:
     static const char *const exts[];
+    static const char *const mimes[];
 
     static constexpr PluginInfo info = {
         N_("SID Player"),
@@ -48,19 +48,20 @@ public:
 
     constexpr SIDPlugin() : InputPlugin(info, InputInfo(FlagSubtunes)
         .with_priority(5) /* medium priority (slow to initialize) */
+        .with_mimes (mimes)
         .with_exts(exts)) {}
 
-    bool init()
+    bool init() override
     {
         xs_init_configuration();
         return true;
     }
 
-    void cleanup();
+    void cleanup() override;
 
-    bool is_our_file(const char *filename, VFSFile &file);
-    bool read_tag(const char *filename, VFSFile &file, Tuple &tuple, Index<char> *image);
-    bool play(const char *filename, VFSFile &file);
+    bool is_our_file(const char *filename, VFSFile &file) override;
+    bool read_tag(const char *filename, VFSFile &file, Tuple &tuple, Index<char> *image) override;
+    bool play(const char *filename, VFSFile &file) override;
 
 private:
     bool delayed_init();
@@ -156,8 +157,8 @@ bool SIDPlugin::play(const char *filename, VFSFile &file)
     /* Check minimum playtime */
     int tmpLength = info.subTunes[subTune - 1].tuneLength;
     if (xs_cfg.playMinTimeEnable && (tmpLength >= 0)) {
-        if (tmpLength < xs_cfg.playMinTime)
-            tmpLength = xs_cfg.playMinTime;
+        if (tmpLength < xs_cfg.playMinTime * 1000)
+            tmpLength = xs_cfg.playMinTime * 1000;
     }
 
     /* Initialize song */
@@ -204,7 +205,7 @@ bool SIDPlugin::play(const char *filename, VFSFile &file)
         }
 
         if (tmpLength >= 0) {
-            if (time_played >= tmpLength * 1000)
+            if (time_played >= tmpLength)
                 break;
         }
     }
@@ -231,7 +232,7 @@ static void xs_get_song_tuple_info(Tuple &tuple, const xs_tuneinfo_t &info, int 
 
     if (subTune > 0 && subTune <= info.nsubTunes) {
         int tmpInt = info.subTunes[subTune - 1].tuneLength;
-        tuple.set_int (Tuple::Length, (tmpInt < 0) ? -1 : tmpInt * 1000);
+        tuple.set_int (Tuple::Length, (tmpInt < 0) ? -1 : tmpInt);
     } else
         subTune = 1;
 
@@ -248,7 +249,7 @@ static void xs_fill_subtunes(Tuple &tuple, const xs_tuneinfo_t &info)
     for (int count = 0; count < info.nsubTunes; count++) {
         if (count + 1 == info.startTune || !xs_cfg.subAutoMinOnly ||
             info.subTunes[count].tuneLength < 0 ||
-            info.subTunes[count].tuneLength >= xs_cfg.subAutoMinTime)
+            info.subTunes[count].tuneLength >= xs_cfg.subAutoMinTime * 1000)
             subtunes.append (count + 1);
     }
 
@@ -284,3 +285,4 @@ bool SIDPlugin::read_tag(const char *filename, VFSFile &file, Tuple &tuple, Inde
  * Plugin header
  */
 const char *const SIDPlugin::exts[] = { "sid", "psid", nullptr };
+const char *const SIDPlugin::mimes[] = { "audio/prs.sid", nullptr };

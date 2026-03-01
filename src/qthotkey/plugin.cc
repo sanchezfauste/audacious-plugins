@@ -42,7 +42,10 @@
 #include <QtCore/QCoreApplication>
 #include <QtCore/QString>
 #include <QtCore/QTimer>
+#include <QtGui/QGuiApplication>
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <QtX11Extras/QX11Info>
+#endif
 
 #include <libaudcore/drct.h>
 #include <libaudcore/hook.h>
@@ -57,8 +60,6 @@
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
 #include <xcb/xproto.h>
-
-#include <stdlib.h>
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 typedef qintptr filter_result_t;
@@ -95,6 +96,7 @@ static GlobalHotkeysEventFilter event_filter;
 static PluginConfig plugin_cfg;
 
 static int grabbed = 0;
+static Display * xdisplay = nullptr;
 unsigned int numlock_mask = 0;
 unsigned int scrolllock_mask = 0;
 unsigned int capslock_mask = 0;
@@ -119,38 +121,24 @@ bool handle_keyevent(Event event)
 {
     int current_volume, old_volume;
     static int volume_static = 0;
-    bool mute;
 
     /* get current volume */
     current_volume = aud_drct_get_volume_main();
     old_volume = current_volume;
-
-    if (current_volume)
-    {
-        /* volume is not mute */
-        mute = false;
-    }
-    else
-    {
-        /* volume is mute */
-        mute = true;
-    }
 
     switch (event)
     {
     /* mute the playback */
     case Event::Mute:
     {
-        if (!mute)
+        if (current_volume != 0)
         {
             volume_static = current_volume;
             aud_drct_set_volume_main(0);
-            mute = true;
         }
         else
         {
             aud_drct_set_volume_main(volume_static);
-            mute = false;
         }
 
         return true;
@@ -160,13 +148,6 @@ bool handle_keyevent(Event event)
     /* decrease volume */
     case Event::VolumeDown:
     {
-        if (mute)
-        {
-            current_volume = old_volume;
-            old_volume = 0;
-            mute = false;
-        }
-
         if ((current_volume -= aud_get_int("volume_delta")) < 0)
         {
             current_volume = 0;
@@ -177,7 +158,6 @@ bool handle_keyevent(Event event)
             aud_drct_set_volume_main(current_volume);
         }
 
-        old_volume = current_volume;
         return true;
     }
     break;
@@ -185,13 +165,6 @@ bool handle_keyevent(Event event)
     /* increase volume */
     case Event::VolumeUp:
     {
-        if (mute)
-        {
-            current_volume = old_volume;
-            old_volume = 0;
-            mute = false;
-        }
-
         if ((current_volume += aud_get_int("volume_delta")) > 100)
         {
             current_volume = 100;
@@ -202,7 +175,6 @@ bool handle_keyevent(Event event)
             aud_drct_set_volume_main(current_volume);
         }
 
-        old_volume = current_volume;
         return true;
     }
     break;
@@ -239,10 +211,26 @@ bool handle_keyevent(Event event)
     }
     break;
 
+    /* prev album */
+    case Event::PrevAlbum:
+    {
+        aud_drct_pl_prev_album();
+        return true;
+    }
+    break;
+
     /* next track */
     case Event::NextTrack:
     {
         aud_drct_pl_next();
+        return true;
+    }
+    break;
+
+    /* next album */
+    case Event::NextAlbum:
+    {
+        aud_drct_pl_next_album();
         return true;
     }
     break;
@@ -336,7 +324,7 @@ void add_hotkey(QList<HotkeyConfiguration> & hotkeys_list, KeySym keysym,
         return;
     }
 
-    keycode = XKeysymToKeycode(QX11Info::display(), keysym);
+    keycode = XKeysymToKeycode(xdisplay, keysym);
     if (keycode == 0)
     {
         return;
@@ -436,12 +424,32 @@ bool GlobalHotkeys::init()
 {
     audqt::init();
 
-    if (!QX11Info::isPlatformX11())
+#if QT_VERSION >= QT_VERSION_CHECK(6, 2, 0) && defined(Q_OS_UNIX)
+    auto * x11_interface =
+        qApp->nativeInterface<QNativeInterface::QX11Application>();
+    bool has_x11 = x11_interface != nullptr;
+#elif QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    // the interface is not implemented
+    bool has_x11 = false;
+#else
+    bool has_x11 = QX11Info::isPlatformX11();
+#endif
+
+    if (!has_x11)
     {
         AUDERR("Global Hotkey plugin only supports X11.\n");
         audqt::cleanup();
         return false;
     }
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 2, 0)
+    xdisplay = reinterpret_cast<Display *>(x11_interface->display());
+#elif QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    Q_UNREACHABLE();
+    xdisplay = nullptr;
+#else
+    xdisplay = QX11Info::display();
+#endif
 
     load_config();
     grab_keys();
@@ -610,7 +618,6 @@ void grab_keys()
     PluginConfig * plugin_cfg = get_config();
 
     XErrorHandler old_handler = nullptr;
-    Display * xdisplay = QX11Info::display();
 
     if (grabbed || (!xdisplay))
     {
@@ -704,7 +711,6 @@ void ungrab_keys()
     PluginConfig * plugin_cfg = get_config();
 
     XErrorHandler old_handler = nullptr;
-    Display * xdisplay = QX11Info::display();
 
     if ((!grabbed) || (!xdisplay))
     {

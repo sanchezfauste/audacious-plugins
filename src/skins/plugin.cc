@@ -30,13 +30,16 @@
 #include <libaudgui/libaudgui.h>
 #include <libaudgui/libaudgui-gtk.h>
 
+#ifdef GDK_WINDOWING_WAYLAND
+#include <gdk/gdkwayland.h>
+#endif
+
 #include "menus.h"
 #include "plugin.h"
 #include "plugin-window.h"
 #include "skins_cfg.h"
 #include "equalizer.h"
 #include "main.h"
-#include "vis-callbacks.h"
 #include "playlistwin.h"
 #include "skin.h"
 #include "window.h"
@@ -55,39 +58,39 @@ public:
 
     constexpr SkinnedUI () : IfacePlugin (info) {}
 
-    bool init ();
-    void cleanup ();
+    bool init () override;
+    void cleanup () override;
 
-    void run ()
+    void run () override
         { gtk_main (); }
-    void quit ()
+    void quit () override
         { gtk_main_quit (); }
 
-    void show (bool show)
+    void show (bool show) override
         { view_show_player (show); }
 
-    void show_about_window ()
+    void show_about_window () override
         { audgui_show_about_window (); }
-    void hide_about_window ()
+    void hide_about_window () override
         { audgui_hide_about_window (); }
-    void show_filebrowser (bool open)
+    void show_filebrowser (bool open) override
         { audgui_run_filebrowser (open); }
-    void hide_filebrowser ()
+    void hide_filebrowser () override
         { audgui_hide_filebrowser (); }
-    void show_jump_to_song ()
+    void show_jump_to_song () override
         { audgui_jump_to_track (); }
-    void hide_jump_to_song ()
+    void hide_jump_to_song () override
         { audgui_jump_to_track_hide (); }
-    void show_prefs_window ()
+    void show_prefs_window () override
         { audgui_show_prefs_window (); }
-    void hide_prefs_window ()
+    void hide_prefs_window () override
         { audgui_hide_prefs_window (); }
-    void plugin_menu_add (AudMenuID id, void func (), const char * name, const char * icon)
+    void plugin_menu_add (AudMenuID id, void func (), const char * name, const char * icon) override
         { audgui_plugin_menu_add (id, func, name, icon); }
-    void plugin_menu_remove (AudMenuID id, void func ())
+    void plugin_menu_remove (AudMenuID id, void func ()) override
         { audgui_plugin_menu_remove (id, func); }
 
-    void startup_notify (const char * id)
+    void startup_notify (const char * id) override
         { gdk_notify_startup_complete_with_id (id); }
 };
 
@@ -164,6 +167,17 @@ bool SkinnedUI::init ()
         return false;
 
     audgui_init ();
+
+#ifdef GDK_WINDOWING_WAYLAND
+    if (GDK_IS_WAYLAND_DISPLAY (gdk_display_get_default ()))
+    {
+        AUDERR ("The Winamp interface is not supported on Wayland. "
+                "Please run Audacious via XWayland.\n");
+        audgui_cleanup ();
+        return false;
+    }
+#endif
+
     menu_init ();
     skins_init_main (false);
 

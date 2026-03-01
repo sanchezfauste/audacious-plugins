@@ -37,14 +37,16 @@ extern Playlist menu_tab_playlist;
 extern const PluginPreferences gtkui_prefs;
 
 /* ui_gtk.c */
+GtkWindow * get_main_window ();
 void show_hide_menu ();
 void show_hide_infoarea ();
 void show_hide_infoarea_art ();
 void show_hide_infoarea_vis ();
 void show_hide_statusbar ();
-void popup_menu_rclick (unsigned button, uint32_t time);
-void popup_menu_tab (unsigned button, uint32_t time, Playlist playlist);
+void popup_menu_rclick (const GdkEvent * event);
+void popup_menu_tab (const GdkEvent * event, Playlist playlist);
 void activate_search_tool ();
 void activate_playlist_manager ();
+void update_toolbar_icons ();
 
 #endif

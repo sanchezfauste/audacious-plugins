@@ -32,6 +32,7 @@
 #include <libaudcore/runtime.h>
 #include <libaudcore/plugin.h>
 #include <libaudcore/preferences.h>
+#include <libaudgui/gtk-compat.h>
 
 static void /* GtkWidget */ * bscope_get_color_chooser ();
 
@@ -61,23 +62,28 @@ public:
 
     constexpr BlurScope () : VisPlugin (info, Visualizer::MonoPCM) {}
 
-    bool init ();
-    void cleanup ();
+    bool init () override;
+    void cleanup () override;
 
-    void * get_gtk_widget ();
+    void * get_gtk_widget () override;
 
-    void clear ();
-    void render_mono_pcm (const float * pcm);
+    void clear () override;
+    void render_mono_pcm (const float * pcm) override;
 
 private:
     void resize (int w, int h);
+    void draw_to_cairo (cairo_t * cr);
     void draw ();
 
     void blur ();
     void draw_vert_line (int x, int y1, int y2);
 
     static gboolean configure_event (GtkWidget * widget, GdkEventConfigure * event, void * user);
-    static gboolean expose_event (GtkWidget * widget, GdkEventExpose * event, void * user);
+#ifdef USE_GTK3
+    static gboolean draw_event (GtkWidget * widget, cairo_t * cr, void * user);
+#else
+    static gboolean draw_event (GtkWidget * widget, GdkEventExpose * event, void * user);
+#endif
 
     GtkWidget * area = nullptr;
     int width = 0, height = 0, stride = 0, image_size = 0;
@@ -113,18 +119,27 @@ void BlurScope::resize (int w, int h)
     corner = image + stride + 1;
 }
 
-void BlurScope::draw ()
+void BlurScope::draw_to_cairo (cairo_t * cr)
 {
-    if (! area || ! gtk_widget_get_window (area))
-        return;
-
-    cairo_t * cr = gdk_cairo_create (gtk_widget_get_window (area));
     cairo_surface_t * surf = cairo_image_surface_create_for_data
      ((unsigned char *) image, CAIRO_FORMAT_RGB24, width, height, stride << 2);
     cairo_set_source_surface (cr, surf, 0, 0);
     cairo_paint (cr);
     cairo_surface_destroy (surf);
+}
+
+void BlurScope::draw ()
+{
+#ifdef USE_GTK3
+    if (area)
+        gtk_widget_queue_draw (area);
+#else
+    if (! area || ! gtk_widget_get_window (area))
+        return;
+    cairo_t * cr = gdk_cairo_create (gtk_widget_get_window (area));
+    draw_to_cairo (cr);
     cairo_destroy (cr);
+#endif
 }
 
 gboolean BlurScope::configure_event (GtkWidget * widget, GdkEventConfigure * event, void * user)
@@ -133,17 +148,25 @@ gboolean BlurScope::configure_event (GtkWidget * widget, GdkEventConfigure * eve
     return true;
 }
 
-gboolean BlurScope::expose_event (GtkWidget * widget, GdkEventExpose * event, void * user)
+#ifdef USE_GTK3
+gboolean BlurScope::draw_event (GtkWidget * widget, cairo_t * cr, void * user)
+{
+    ((BlurScope *) user)->draw_to_cairo (cr);
+    return true;
+}
+#else
+gboolean BlurScope::draw_event (GtkWidget * widget, GdkEventExpose * event, void * user)
 {
     ((BlurScope *) user)->draw ();
     return true;
 }
+#endif
 
 void * BlurScope::get_gtk_widget ()
 {
     area = gtk_drawing_area_new ();
 
-    g_signal_connect (area, "expose-event", (GCallback) expose_event, this);
+    g_signal_connect (area, AUDGUI_DRAW_SIGNAL, (GCallback) draw_event, this);
     g_signal_connect (area, "configure-event", (GCallback) configure_event, this);
     g_signal_connect (area, "destroy", (GCallback) gtk_widget_destroyed, & area);
 
@@ -212,17 +235,44 @@ void BlurScope::render_mono_pcm (const float * pcm)
 
 static void color_set_cb (GtkWidget * chooser)
 {
+#ifdef USE_GTK3
+    GdkRGBA rgba;
+    gtk_color_chooser_get_rgba ((GtkColorChooser *) chooser, & rgba);
+
+    int red = round (rgba.red * 255);
+    int green = round (rgba.green * 255);
+    int blue = round (rgba.blue * 255);
+    bscope_color = (red << 16) | (green << 8) | blue;
+#else
     GdkColor gdk_color;
     gtk_color_button_get_color ((GtkColorButton *) chooser, & gdk_color);
     bscope_color = ((gdk_color.red & 0xff00) << 8) | (gdk_color.green & 0xff00) | (gdk_color.blue >> 8);
+#endif
 }
 
 static void /* GtkWidget */ * bscope_get_color_chooser ()
 {
-    GdkColor gdk_color = {0, (uint16_t) ((bscope_color & 0xff0000) >> 8),
-     (uint16_t) (bscope_color & 0xff00), (uint16_t) ((bscope_color & 0xff) << 8)};
+#ifdef USE_GTK3
+    GdkRGBA rgba = {
+        ((bscope_color & 0xff0000) >> 16) / 255.0,
+        ((bscope_color & 0xff00) >> 8) / 255.0,
+        (bscope_color & 0xff) / 255.0,
+        1.0
+    };
+
+    GtkWidget * chooser = gtk_color_button_new_with_rgba (& rgba);
+    gtk_color_chooser_set_use_alpha ((GtkColorChooser *) chooser, false);
+#else
+    GdkColor gdk_color = {
+        0,
+        (uint16_t) ((bscope_color & 0xff0000) >> 8),
+        (uint16_t) (bscope_color & 0xff00),
+        (uint16_t) ((bscope_color & 0xff) << 8)
+    };
+
     GtkWidget * chooser = gtk_color_button_new_with_color (& gdk_color);
     gtk_color_button_set_use_alpha ((GtkColorButton *) chooser, false);
+#endif
 
     g_signal_connect (chooser, "color-set", (GCallback) color_set_cb, nullptr);
 

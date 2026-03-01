@@ -1,11 +1,13 @@
 #ifndef _PLUGIN_H_INCLUDED_
 #define _PLUGIN_H_INCLUDED_
 
-#include <glib.h>
-
 #define TYPE_KEY 0
 #define TYPE_MOUSE 1
 
+/*
+ * Add new events always at the end of the enum (but before EVENT_MAX).
+ * The int values are used in the configuration and hence should not change.
+ */
 typedef enum
 {
     EVENT_PREV_TRACK = 0,
@@ -30,6 +32,9 @@ typedef enum
 
     EVENT_RAISE,
 
+    EVENT_PREV_ALBUM,
+    EVENT_NEXT_ALBUM,
+
     EVENT_MAX
 } EVENT;
 
@@ -50,6 +55,6 @@ typedef struct
 void load_config();
 void save_config();
 PluginConfig * get_config();
-gboolean handle_keyevent(EVENT event);
+bool handle_keyevent(EVENT event);
 
 #endif

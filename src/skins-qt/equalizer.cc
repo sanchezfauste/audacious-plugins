@@ -23,8 +23,6 @@
  *  Audacious or using our public API to be a derived work.
  */
 
-#include <string.h>
-
 #include <libaudcore/audstrings.h>
 #include <libaudcore/drct.h>
 #include <libaudcore/equalizer.h>
@@ -34,7 +32,6 @@
 #include <libaudqt/libaudqt.h>
 
 #include "menus.h"
-#include "plugin.h"
 #include "skins_cfg.h"
 #include "equalizer.h"
 #include "main.h"
@@ -43,8 +40,9 @@
 #include "eq-slider.h"
 #include "hslider.h"
 #include "window.h"
-#include "skins_util.h"
 #include "view.h"
+
+#include "../ui-common/qt-compat.h"
 
 class EqWindow : public Window
 {
@@ -54,8 +52,8 @@ public:
          shaded ? 14 : 116, shaded) {}
 
 private:
-    void draw (QPainter & cr);
-    bool button_press (QMouseEvent * event);
+    void draw (QPainter & cr) override;
+    bool button_press (QMouseEvent * event) override;
 };
 
 Window * equalizerwin;
@@ -96,7 +94,7 @@ bool EqWindow::button_press (QMouseEvent * event)
 {
     if (event->button () == Qt::LeftButton &&
      event->type () == QEvent::MouseButtonDblClick &&
-     event->y () < 14 * config.scale)
+     QtCompat::y (event) < 14 * config.scale)
     {
         equalizerwin_shade_toggle ();
         return true;
@@ -104,7 +102,7 @@ bool EqWindow::button_press (QMouseEvent * event)
 
     if (event->button () == Qt::RightButton && event->type () == QEvent::MouseButtonPress)
     {
-        menu_popup (UI_MENU_MAIN, event->globalX (), event->globalY (), false, false);
+        menu_popup (UI_MENU_MAIN, QtCompat::globalX (event), QtCompat::globalY (event), false, false);
         return true;
     }
 
@@ -251,9 +249,9 @@ void EqWindow::draw (QPainter & cr)
     skin_draw_pixbuf (cr, SKIN_EQMAIN, 0, 0, 0, 0, 275, is_shaded () ? 14 : 116);
 
     if (is_shaded ())
-        skin_draw_pixbuf (cr, SKIN_EQ_EX, 0, 0, 0, 0, 275, 14);
+        skin_draw_pixbuf (cr, SKIN_EQ_EX, 0, is_focused () ? 0 : 15, 0, 0, 275, 14);
     else
-        skin_draw_pixbuf (cr, SKIN_EQMAIN, 0, 134, 0, 0, 275, 14);
+        skin_draw_pixbuf (cr, SKIN_EQMAIN, 0, is_focused () ? 134 : 149, 0, 0, 275, 14);
 }
 
 static void equalizerwin_create_window ()
@@ -266,6 +264,7 @@ static void equalizerwin_create_window ()
 
     equalizerwin = new EqWindow (shaded);
     equalizerwin->setWindowTitle (_("Audacious Equalizer"));
+    equalizerwin->setWindowRole ("equalizer");
 }
 
 void equalizerwin_unhook ()

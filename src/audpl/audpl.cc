@@ -35,9 +35,9 @@ public:
     constexpr AudPlaylistLoader () : PlaylistPlugin (info, audpl_exts, true) {}
 
     bool load (const char * filename, VFSFile & file, String & title,
-     Index<PlaylistAddItem> & items);
+     Index<PlaylistAddItem> & items) override;
     bool save (const char * filename, VFSFile & file, const char * title,
-     const Index<PlaylistAddItem> & items);
+     const Index<PlaylistAddItem> & items) override;
 };
 
 EXPORT AudPlaylistLoader aud_plugin_instance;
@@ -73,9 +73,9 @@ private:
     }
 
     /* no headings */
-    void handle_heading (const char * heading) {}
+    void handle_heading (const char * heading) override {}
 
-    void handle_entry (const char * key, const char * value)
+    void handle_entry (const char * key, const char * value) override
     {
         if (! strcmp (key, "uri"))
         {
@@ -109,6 +109,8 @@ private:
                      str_decode_percent (value));
                 else if (type == Tuple::Int)
                     tuple.set_int (field, atoi (value));
+                else if (type == Tuple::DateTime)
+                    tuple.set_int64 (field, str_to_int64 (value));
 
                 /* state is implicitly Valid if any field is present */
                 tuple.set_state (Tuple::Valid);
@@ -175,6 +177,14 @@ bool AudPlaylistLoader::save (const char * path, VFSFile & file,
                         return false;
 
                     keys ++;
+                }
+                else if (type == Tuple::DateTime)
+                {
+                    int64_t val = item.tuple.get_int64 (f);
+                    if (! inifile_write_entry (file, key, int64_to_str (val)))
+                        return false;
+
+                    keys++;
                 }
             }
 

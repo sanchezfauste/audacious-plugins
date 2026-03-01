@@ -17,10 +17,7 @@
  * the use of this software.
  */
 
-#include <cmath>
-
 #include "info_bar.h"
-#include "settings.h"
 
 #include <libaudcore/drct.h>
 #include <libaudcore/interface.h>
@@ -70,11 +67,11 @@ public:
     const PixelSizes & pixelSizes() const { return ps; }
 
 protected:
-    void render_freq(const float * freq);
-    void clear();
+    void render_freq(const float * freq) override;
+    void clear() override;
 
-    void changeEvent(QEvent * event);
-    void paintEvent(QPaintEvent *);
+    void changeEvent(QEvent * event) override;
+    void paintEvent(QPaintEvent *) override;
 
 private:
     void update_colors();

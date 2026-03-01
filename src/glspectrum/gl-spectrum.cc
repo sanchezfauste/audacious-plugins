@@ -26,6 +26,8 @@
 
 #include <libaudcore/i18n.h>
 #include <libaudcore/plugin.h>
+#include <libaudcore/runtime.h>
+#include <libaudgui/gtk-compat.h>
 
 #include <gdk/gdk.h>
 #include <gtk/gtk.h>
@@ -35,6 +37,10 @@
 #ifdef GDK_WINDOWING_X11
 #include <GL/glx.h>
 #include <gdk/gdkx.h>
+#endif
+
+#ifdef GDK_WINDOWING_WAYLAND
+#include <gdk/gdkwayland.h>
 #endif
 
 #ifdef GDK_WINDOWING_WIN32
@@ -68,12 +74,12 @@ public:
 
     constexpr GLSpectrum () : VisPlugin (info, Visualizer::Freq) {}
 
-    bool init ();
+    bool init () override;
 
-    void * get_gtk_widget ();
+    void * get_gtk_widget () override;
 
-    void clear ();
-    void render_freq (const float * freq);
+    void clear () override;
+    void render_freq (const float * freq) override;
 };
 
 EXPORT GLSpectrum aud_plugin_instance;
@@ -101,6 +107,14 @@ static float s_bars[NUM_BANDS][NUM_BANDS];
 
 bool GLSpectrum::init ()
 {
+#ifdef GDK_WINDOWING_WAYLAND
+    if (GDK_IS_WAYLAND_DISPLAY (gdk_display_get_default ()))
+    {
+        AUDERR ("OpenGL Spectrum Analyzer only supports X11, not Wayland.\n");
+        return false;
+    }
+#endif
+
     for (int i = 0; i <= NUM_BANDS; i ++)
         logscale[i] = powf (256, (float) i / NUM_BANDS) - 0.5f;
 
@@ -246,7 +260,11 @@ static void draw_bars ()
     glPopMatrix ();
 }
 
+#ifdef USE_GTK3
+static gboolean draw_cb (GtkWidget * widget, cairo_t * cr)
+#else
 static gboolean draw_cb (GtkWidget * widget)
+#endif
 {
 #ifdef GDK_WINDOWING_X11
     if (! s_context)
@@ -417,13 +435,14 @@ void * GLSpectrum::get_gtk_widget ()
 
     s_widget = gtk_drawing_area_new ();
 
-    g_signal_connect (s_widget, "expose-event", (GCallback) draw_cb, nullptr);
+    g_signal_connect (s_widget, AUDGUI_DRAW_SIGNAL, (GCallback) draw_cb, nullptr);
     g_signal_connect (s_widget, "realize", (GCallback) widget_realized, nullptr);
     g_signal_connect (s_widget, "destroy", (GCallback) widget_destroyed, nullptr);
     g_signal_connect (s_widget, "configure-event", (GCallback) widget_resize, nullptr);
 
-    /* Disable GTK double buffering */
+#ifndef USE_GTK3
     gtk_widget_set_double_buffered (s_widget, false);
+#endif
 
     return s_widget;
 }

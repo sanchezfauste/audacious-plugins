@@ -29,14 +29,7 @@
 #include "skins_cfg.h"
 #include "main.h"
 #include "vis-callbacks.h"
-#include "skin.h"
-#include "button.h"
-#include "hslider.h"
-#include "number.h"
-#include "playstatus.h"
-#include "textbox.h"
 #include "vis.h"
-#include "skins_util.h"
 
 class VisCallbacks : public Visualizer
 {
@@ -44,10 +37,10 @@ public:
     constexpr VisCallbacks () :
         Visualizer (MonoPCM | MultiPCM | Freq) {}
 
-    void clear ();
-    void render_mono_pcm (const float * pcm);
-    void render_multi_pcm (const float * pcm, int channels);
-    void render_freq (const float * freq);
+    void clear () override;
+    void render_mono_pcm (const float * pcm) override;
+    void render_multi_pcm (const float * pcm, int channels) override;
+    void render_freq (const float * freq) override;
 };
 
 void VisCallbacks::clear ()

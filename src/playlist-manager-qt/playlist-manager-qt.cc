@@ -17,6 +17,8 @@
  * the use of this software.
  */
 
+#include <string.h>
+
 #include <QAbstractListModel>
 #include <QBoxLayout>
 #include <QFont>
@@ -34,6 +36,8 @@
 #include <libaudqt/libaudqt.h>
 #include <libaudqt/treeview.h>
 
+#include "../ui-common/qt-compat.h"
+
 class PlaylistManagerQt : public GeneralPlugin
 {
 public:
@@ -44,8 +48,8 @@ public:
 
     constexpr PlaylistManagerQt() : GeneralPlugin(info, false) {}
 
-    void * get_qt_widget();
-    int take_message(const char * code, const void *, int);
+    void * get_qt_widget() override;
+    int take_message(const char * code, const void *, int) override;
 };
 
 EXPORT PlaylistManagerQt aud_plugin_instance;
@@ -78,16 +82,22 @@ public:
     void update(Playlist::UpdateLevel level);
 
 protected:
-    int rowCount(const QModelIndex & parent) const
+    int rowCount(const QModelIndex & parent) const override
     {
         return parent.isValid() ? 0 : m_rows;
     }
 
-    int columnCount(const QModelIndex & parent) const { return NColumns; }
+    int columnCount(const QModelIndex & parent) const override
+    {
+        return NColumns;
+    }
 
-    Qt::DropActions supportedDropActions() const { return Qt::MoveAction; }
+    Qt::DropActions supportedDropActions() const override
+    {
+        return Qt::MoveAction;
+    }
 
-    Qt::ItemFlags flags(const QModelIndex & index) const
+    Qt::ItemFlags flags(const QModelIndex & index) const override
     {
         if (index.isValid())
             return Qt::ItemIsSelectable | Qt::ItemIsDragEnabled |
@@ -97,9 +107,9 @@ protected:
                    Qt::ItemIsEnabled;
     }
 
-    QVariant data(const QModelIndex & index, int role) const;
+    QVariant data(const QModelIndex & index, int role) const override;
     QVariant headerData(int section, Qt::Orientation orientation,
-                        int role) const;
+                        int role) const override;
 
 private:
     void update_rows(int row, int count);
@@ -118,17 +128,11 @@ public:
     PlaylistsView();
 
 protected:
-    void changeEvent(QEvent * event) override
-    {
-        if (event->type() == QEvent::FontChange)
-            m_model.setFont(font());
-
-        audqt::TreeView::changeEvent(event);
-    }
-
+    void changeEvent(QEvent * event) override;
     void currentChanged(const QModelIndex & current,
                         const QModelIndex & previous) override;
     void dropEvent(QDropEvent * event) override;
+    void keyPressEvent(QKeyEvent * event) override;
 
 private:
     PlaylistsModel m_model;
@@ -274,6 +278,14 @@ PlaylistsView::PlaylistsView()
     });
 }
 
+void PlaylistsView::changeEvent(QEvent * event)
+{
+    if (event->type() == QEvent::FontChange)
+        m_model.setFont(font());
+
+    audqt::TreeView::changeEvent(event);
+}
+
 void PlaylistsView::currentChanged(const QModelIndex & current,
                                    const QModelIndex & previous)
 {
@@ -295,10 +307,10 @@ void PlaylistsView::dropEvent(QDropEvent * event)
     switch (dropIndicatorPosition())
     {
     case AboveItem:
-        to = indexAt(event->pos()).row();
+        to = indexAt(QtCompat::pos(event)).row();
         break;
     case BelowItem:
-        to = indexAt(event->pos()).row() + 1;
+        to = indexAt(QtCompat::pos(event)).row() + 1;
         break;
     case OnViewport:
         to = Playlist::n_playlists();
@@ -309,6 +321,28 @@ void PlaylistsView::dropEvent(QDropEvent * event)
 
     Playlist::reorder_playlists(from, (to > from) ? to - 1 : to, 1);
     event->acceptProposedAction();
+}
+
+void PlaylistsView::keyPressEvent(QKeyEvent * event)
+{
+    auto CtrlShiftAlt =
+        Qt::ShiftModifier | Qt::ControlModifier | Qt::AltModifier;
+
+    if (!(event->modifiers() & CtrlShiftAlt))
+    {
+        switch (event->key())
+        {
+        case Qt::Key_Delete:
+            audqt::playlist_confirm_delete(Playlist::active_playlist());
+            return;
+
+        case Qt::Key_F2:
+            audqt::playlist_show_rename(Playlist::active_playlist());
+            return;
+        }
+    }
+
+    audqt::TreeView::keyPressEvent(event);
 }
 
 void PlaylistsView::update(Playlist::UpdateLevel level)
@@ -333,7 +367,7 @@ static QPointer<PlaylistsView> s_playlists_view;
 static QToolButton * new_tool_button(const char * text, const char * icon)
 {
     auto button = new QToolButton;
-    button->setIcon(audqt::get_icon(icon));
+    button->setIcon(QIcon::fromTheme(icon));
     button->setText(audqt::translate_str(text));
     button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     return button;

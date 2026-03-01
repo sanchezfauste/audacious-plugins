@@ -51,7 +51,7 @@ private:
     InfoBar * m_infobar;
     StatusBar * m_statusbar;
 
-    PluginHandle *m_search_tool, *m_playlist_manager;
+    PluginHandle *m_search_tool, *m_playback_history, *m_playlist_manager;
 
     QAction *m_menu_action, *m_search_action;
     QAction *m_play_pause_action, *m_stop_action, *m_stop_after_action;
@@ -88,6 +88,11 @@ private:
         if (m_search_tool)
             show_dock_plugin(m_search_tool);
     }
+    void show_playback_history()
+    {
+        if (m_playback_history)
+            show_dock_plugin(m_playback_history);
+    }
     void show_playlist_manager()
     {
         if (m_playlist_manager)
@@ -116,9 +121,11 @@ private:
         hook13{"qtui toggle infoarea", this, &MainWindow::update_visibility},
         hook14{"qtui toggle statusbar", this, &MainWindow::update_visibility},
         hook15{"qtui show search tool", this, &MainWindow::show_search_tool},
-        hook16{"qtui show playlist manager", this,
+        hook16{"qtui show playback history", this,
+               &MainWindow::show_playback_history},
+        hook17{"qtui show playlist manager", this,
                &MainWindow::show_playlist_manager},
-        hook17{"set stop_after_each_song", this, &MainWindow::update_toggles};
+        hook18{"set stop_after_each_song", this, &MainWindow::update_toggles};
 };
 
 #endif

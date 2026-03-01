@@ -25,9 +25,13 @@
 #include <libaudcore/drct.h>
 #include <libaudcore/hook.h>
 #include <libaudcore/interface.h>
+#include <libaudgui/gtk-compat.h>
 #include <libaudgui/libaudgui-gtk.h>
 
 #include "ui_infoarea.h"
+
+#define ALPHA_STEPS 10
+static inline float TO_ALPHA (int steps) { return (float) steps / ALPHA_STEPS; }
 
 #define VIS_BANDS 12
 #define VIS_DELAY 2 /* delay before falloff in frames */
@@ -55,7 +59,7 @@ typedef struct {
     String title, artist, album;
     String last_title, last_artist, last_album;
     AudguiPixbuf pb, last_pb;
-    float alpha, last_alpha;
+    int alpha_steps, last_alpha_steps;
 
     bool show_art;
     bool stopped;
@@ -71,8 +75,8 @@ public:
     float bars[VIS_BANDS] {};
     char delay[VIS_BANDS] {};
 
-    void clear ();
-    void render_freq (const float * freq);
+    void clear () override;
+    void render_freq (const float * freq) override;
 };
 
 static InfoAreaVis vis;
@@ -124,9 +128,11 @@ static void clear (GtkWidget * widget, cairo_t * cr)
     GtkAllocation alloc;
     gtk_widget_get_allocation (widget, & alloc);
 
+G_GNUC_BEGIN_IGNORE_DEPRECATIONS
     auto & c = (gtk_widget_get_style (widget))->base[GTK_STATE_NORMAL];
-    cairo_pattern_t * gradient = audgui_dark_bg_gradient (c, alloc.height);
+G_GNUC_END_IGNORE_DEPRECATIONS
 
+    cairo_pattern_t * gradient = audgui_dark_bg_gradient (c, alloc.height);
     cairo_set_source (cr, gradient);
     cairo_rectangle (cr, 0, 0, alloc.width, alloc.height);
     cairo_fill (cr);
@@ -135,15 +141,20 @@ static void clear (GtkWidget * widget, cairo_t * cr)
 }
 
 static void draw_text (GtkWidget * widget, cairo_t * cr, int x, int y, int
- width, float r, float g, float b, float a, const char * font,
- const char * text)
+ width, float r, float g, float b, float a, int font_size, const char * text)
 {
+    /* The visibility of Unicode characters like emoji is not affected by the
+     * alpha channel. Make sure to hide them when fading-out track information.
+     * See also: #1491 */
+    if (a <= 0)
+        return;
+
     cairo_move_to (cr, x, y);
     cairo_set_source_rgba (cr, r, g, b, a);
 
-    PangoFontDescription * desc = pango_font_description_from_string (font);
-    PangoLayout * pl = gtk_widget_create_pango_layout (widget, nullptr);
-    pango_layout_set_text (pl, text, -1);
+    PangoLayout * pl = gtk_widget_create_pango_layout (widget, text);
+    PangoFontDescription * desc = pango_font_description_new ();
+    pango_font_description_set_size (desc, font_size * PANGO_SCALE);
     pango_layout_set_font_description (pl, desc);
     pango_font_description_free (desc);
     pango_layout_set_width (pl, width * PANGO_SCALE);
@@ -156,10 +167,18 @@ static void draw_text (GtkWidget * widget, cairo_t * cr, int x, int y, int
 
 /****************************************************************************/
 
-static int expose_vis_cb (GtkWidget * widget, GdkEventExpose * event)
+#ifdef USE_GTK3
+static gboolean draw_vis_cb (GtkWidget * widget, cairo_t * cr)
+{
+#else
+static gboolean draw_vis_cb (GtkWidget * widget, GdkEventExpose * event)
 {
     cairo_t * cr = gdk_cairo_create (gtk_widget_get_window (widget));
+#endif
+
+G_GNUC_BEGIN_IGNORE_DEPRECATIONS
     auto & c = (gtk_widget_get_style (widget))->base[GTK_STATE_SELECTED];
+G_GNUC_END_IGNORE_DEPRECATIONS
 
     clear (widget, cr);
 
@@ -181,7 +200,9 @@ static int expose_vis_cb (GtkWidget * widget, GdkEventExpose * event)
         cairo_fill (cr);
     }
 
+#ifndef USE_GTK3
     cairo_destroy (cr);
+#endif
     return true;
 }
 
@@ -194,7 +215,7 @@ static void draw_album_art (cairo_t * cr)
         int left = SPACING + (ICON_SIZE - area->pb.width ()) / 2;
         int top = SPACING + (ICON_SIZE - area->pb.height ()) / 2;
         gdk_cairo_set_source_pixbuf (cr, area->pb.get (), left, top);
-        cairo_paint_with_alpha (cr, area->alpha);
+        cairo_paint_with_alpha (cr, TO_ALPHA (area->alpha_steps));
     }
 
     if (area->last_pb)
@@ -202,7 +223,7 @@ static void draw_album_art (cairo_t * cr)
         int left = SPACING + (ICON_SIZE - area->last_pb.width ()) / 2;
         int top = SPACING + (ICON_SIZE - area->last_pb.height ()) / 2;
         gdk_cairo_set_source_pixbuf (cr, area->last_pb.get (), left, top);
-        cairo_paint_with_alpha (cr, area->last_alpha);
+        cairo_paint_with_alpha (cr, TO_ALPHA (area->last_alpha_steps));
     }
 }
 
@@ -217,37 +238,46 @@ static void draw_title (cairo_t * cr)
     int y_offset1 = ICON_SIZE / 2;
     int y_offset2 = ICON_SIZE * 3 / 4;
     int width = alloc.width - x;
+    float alpha = TO_ALPHA (area->alpha_steps);
+    float last_alpha = TO_ALPHA (area->last_alpha_steps);
 
     if (area->title)
-        draw_text (area->main, cr, x, SPACING, width, 1, 1, 1, area->alpha,
-         "18", area->title);
+        draw_text (area->main, cr, x, SPACING, width, 1, 1, 1, alpha,
+         18, area->title);
     if (area->last_title)
-        draw_text (area->main, cr, x, SPACING, width, 1, 1, 1, area->last_alpha,
-         "18", area->last_title);
+        draw_text (area->main, cr, x, SPACING, width, 1, 1, 1, last_alpha,
+         18, area->last_title);
     if (area->artist)
         draw_text (area->main, cr, x, SPACING + y_offset1, width, 1, 1, 1,
-         area->alpha, "9", area->artist);
+         alpha, 9, area->artist);
     if (area->last_artist)
         draw_text (area->main, cr, x, SPACING + y_offset1, width, 1, 1, 1,
-         area->last_alpha, "9", area->last_artist);
+         last_alpha, 9, area->last_artist);
     if (area->album)
         draw_text (area->main, cr, x, SPACING + y_offset2, width, 0.7,
-         0.7, 0.7, area->alpha, "9", area->album);
+         0.7, 0.7, alpha, 9, area->album);
     if (area->last_album)
         draw_text (area->main, cr, x, SPACING + y_offset2, width, 0.7,
-         0.7, 0.7, area->last_alpha, "9", area->last_album);
+         0.7, 0.7, last_alpha, 9, area->last_album);
 }
 
-static int expose_cb (GtkWidget * widget, GdkEventExpose * event)
+#ifdef USE_GTK3
+static gboolean draw_cb (GtkWidget * widget, cairo_t * cr)
+{
+    g_return_val_if_fail (area, false);
+#else
+static gboolean draw_cb (GtkWidget * widget, GdkEventExpose * event)
 {
     cairo_t * cr = gdk_cairo_create (gtk_widget_get_window (widget));
-
+#endif
     clear (widget, cr);
 
     draw_album_art (cr);
     draw_title (cr);
 
+#ifndef USE_GTK3
     cairo_destroy (cr);
+#endif
     return true;
 }
 
@@ -256,15 +286,15 @@ static void ui_infoarea_do_fade (void *)
     g_return_if_fail (area);
     bool done = true;
 
-    if (aud_drct_get_playing () && area->alpha < 1)
+    if (aud_drct_get_playing () && area->alpha_steps < ALPHA_STEPS)
     {
-        area->alpha += 0.1;
+        area->alpha_steps ++;
         done = false;
     }
 
-    if (area->last_alpha > 0)
+    if (area->last_alpha_steps > 0)
     {
-        area->last_alpha -= 0.1;
+        area->last_alpha_steps --;
         done = false;
     }
 
@@ -320,8 +350,8 @@ static void infoarea_next ()
     area->last_album = std::move (area->album);
     area->last_pb = std::move (area->pb);
 
-    area->last_alpha = area->alpha;
-    area->alpha = 0;
+    area->last_alpha_steps = area->alpha_steps;
+    area->alpha_steps = 0;
 
     gtk_widget_queue_draw (area->main);
 }
@@ -350,12 +380,6 @@ static void ui_infoarea_playback_stop ()
     timer_add (TimerRate::Hz30, ui_infoarea_do_fade);
 }
 
-static void realize_cb (GtkWidget * widget)
-{
-    /* using a native window avoids redrawing parent widgets */
-    gdk_window_ensure_native (gtk_widget_get_window (widget));
-}
-
 void ui_infoarea_show_art (bool show)
 {
     if (! area)
@@ -378,13 +402,10 @@ void ui_infoarea_show_vis (bool show)
 
         vis.widget = gtk_drawing_area_new ();
 
-        /* note: "realize" signal must be connected before adding to box */
-        g_signal_connect (vis.widget, "realize", (GCallback) realize_cb, nullptr);
-
         gtk_widget_set_size_request (vis.widget, VIS_WIDTH, HEIGHT);
         gtk_box_pack_start ((GtkBox *) area->box, vis.widget, false, false, 0);
 
-        g_signal_connect (vis.widget, "expose-event", (GCallback) expose_vis_cb, nullptr);
+        g_signal_connect (vis.widget, AUDGUI_DRAW_SIGNAL, (GCallback) draw_vis_cb, nullptr);
         gtk_widget_show (vis.widget);
 
         aud_visualizer_add (& vis);
@@ -426,13 +447,13 @@ GtkWidget * ui_infoarea_new ()
     compute_sizes ();
 
     area = new UIInfoArea ();
-    area->box = gtk_hbox_new (false, 0);
+    area->box = audgui_hbox_new (0);
 
     area->main = gtk_drawing_area_new ();
     gtk_widget_set_size_request (area->main, HEIGHT, HEIGHT);
     gtk_box_pack_start ((GtkBox *) area->box, area->main, true, true, 0);
 
-    g_signal_connect (area->main, "expose-event", (GCallback) expose_cb, nullptr);
+    g_signal_connect (area->main, AUDGUI_DRAW_SIGNAL, (GCallback) draw_cb, nullptr);
 
     hook_associate ("tuple change", (HookFunction) ui_infoarea_set_title, nullptr);
     hook_associate ("playback ready", (HookFunction) ui_infoarea_playback_start, nullptr);
@@ -446,7 +467,7 @@ GtkWidget * ui_infoarea_new ()
         set_album_art ();
 
         /* skip fade-in */
-        area->alpha = 1;
+        area->alpha_steps = ALPHA_STEPS;
     }
 
     GtkWidget * frame = gtk_frame_new (nullptr);

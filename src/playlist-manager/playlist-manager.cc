@@ -17,6 +17,11 @@
  * the use of this software.
  */
 
+#include <string.h>
+
+#include <gdk/gdkkeysyms.h>
+#include <gtk/gtk.h>
+
 #include <libaudcore/audstrings.h>
 #include <libaudcore/hook.h>
 #include <libaudcore/i18n.h>
@@ -24,11 +29,10 @@
 #include <libaudcore/plugin.h>
 #include <libaudcore/runtime.h>
 
+#include <libaudgui/gtk-compat.h>
 #include <libaudgui/libaudgui.h>
 #include <libaudgui/libaudgui-gtk.h>
 #include <libaudgui/list.h>
-
-#include <string.h>
 
 class PlaylistManager : public GeneralPlugin
 {
@@ -43,15 +47,13 @@ public:
 
     constexpr PlaylistManager () : GeneralPlugin (info, false) {}
 
-    void * get_gtk_widget ();
-    int take_message (const char * code, const void * data, int size);
+    void * get_gtk_widget () override;
+    int take_message (const char * code, const void * data, int size) override;
 };
 
 EXPORT PlaylistManager aud_plugin_instance;
 
 static GtkWidget * focus_widget;
-
-static void activate_row (void * user, int row);
 
 static void rename_cb (void * unused)
 {
@@ -181,6 +183,26 @@ static void position_hook (void * data, void * list_)
     audgui_list_set_highlight (list, Playlist::playing_playlist ().index ());
 }
 
+static gboolean keypress_cb (GtkWidget * widget, GdkEventKey * event)
+{
+    if ((event->state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK | GDK_MOD1_MASK)))
+        return false;
+
+    switch (event->keyval)
+    {
+    case GDK_KEY_Delete:
+        delete_cb (nullptr);
+        return true;
+
+    case GDK_KEY_F2:
+        rename_cb (nullptr);
+        return true;
+
+    default:
+        return false;
+    }
+}
+
 static void destroy_cb (GtkWidget * window)
 {
     hook_dissociate ("playlist update", update_hook);
@@ -192,7 +214,7 @@ static void destroy_cb (GtkWidget * window)
 
 void * PlaylistManager::get_gtk_widget ()
 {
-    GtkWidget * playman_vbox = gtk_vbox_new (false, 6);
+    GtkWidget * playman_vbox = audgui_vbox_new (6);
 
     /* ListView */
     GtkWidget * playman_pl_lv = audgui_list_new (& callbacks, nullptr, Playlist::n_playlists ());
@@ -214,7 +236,7 @@ void * PlaylistManager::get_gtk_widget ()
     gtk_box_pack_start ((GtkBox *) playman_vbox, playman_pl_lv_sw, true, true, 0);
 
     /* ButtonBox */
-    GtkWidget * playman_button_hbox = gtk_hbox_new (false, 6);
+    GtkWidget * playman_button_hbox = audgui_hbox_new (6);
     GtkWidget * new_button = audgui_button_new (_("_New"), "document-new",
      [] (void *) { Playlist::new_playlist (); }, nullptr);
     GtkWidget * delete_button = audgui_button_new (_("_Remove"), "edit-delete", delete_cb, nullptr);
@@ -227,6 +249,7 @@ void * PlaylistManager::get_gtk_widget ()
 
     focus_widget = playman_pl_lv;
 
+    g_signal_connect (playman_pl_lv, "key-press-event", (GCallback) keypress_cb, nullptr);
     g_signal_connect (playman_vbox, "destroy", (GCallback) destroy_cb, nullptr);
 
     return playman_vbox;

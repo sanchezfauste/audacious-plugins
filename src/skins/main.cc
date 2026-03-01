@@ -39,9 +39,9 @@
 #include <libaudcore/plugins.h>
 #include <libaudcore/runtime.h>
 #include <libaudgui/libaudgui.h>
+#include <libaudgui/libaudgui-gtk.h>
 
 #include "actions-mainwin.h"
-#include "actions-playlist.h"
 #include "dnd.h"
 #include "menus.h"
 #include "plugin.h"
@@ -60,7 +60,6 @@
 #include "textbox.h"
 #include "window.h"
 #include "vis.h"
-#include "skins_util.h"
 #include "view.h"
 
 #include "../ui-common/menu-ops.h"
@@ -77,11 +76,11 @@ public:
          shaded ? MAINWIN_SHADED_HEIGHT : skin.hints.mainwin_height, shaded) {}
 
 private:
-    void draw (cairo_t * cr);
-    bool button_press (GdkEventButton * event);
-    bool scroll (GdkEventScroll * event);
-    bool motion (GdkEventMotion * event);
-    bool leave ();
+    void draw (cairo_t * cr) override;
+    bool button_press (GdkEventButton * event) override;
+    bool scroll (GdkEventScroll * event) override;
+    bool motion (GdkEventMotion * event) override;
+    bool leave () override;
 
     QueuedFunc m_popup_timer;
     bool m_popup_shown = false;
@@ -163,12 +162,12 @@ static StringBuf format_time (int time, int length)
     }
 }
 
-static void mainwin_menubtn_cb ()
+static void mainwin_menubtn_cb (Button * button, GdkEventButton * event)
 {
     int x, y;
     mainwin->getPosition (& x, & y);
     menu_popup (UI_MENU_MAIN, x + 6 * config.scale,
-     y + MAINWIN_SHADED_HEIGHT * config.scale, false, false, 1, GDK_CURRENT_TIME);
+     y + MAINWIN_SHADED_HEIGHT * config.scale, false, false, event);
 }
 
 static void mainwin_minimize_cb ()
@@ -345,7 +344,7 @@ static void mainwin_set_song_info (int bitrate, int samplerate, int channels)
     mainwin_monostereo->set_num_channels (channels);
 
     if (bitrate > 0)
-        snprintf (scratch, sizeof scratch, "%d kbps", bitrate / 1000);
+        snprintf (scratch, sizeof scratch, "%d kbit/s", bitrate / 1000);
     else
         scratch[0] = 0;
 
@@ -364,6 +363,12 @@ static void mainwin_set_song_info (int bitrate, int samplerate, int channels)
     }
 
     mainwin_set_othertext (scratch);
+}
+
+static void mainwin_show_infopopup ()
+{
+    GtkWindow * parent = (GtkWindow *) mainwin->gtk ();
+    audgui_infopopup_show_current (parent);
 }
 
 static void info_change ()
@@ -520,8 +525,7 @@ bool MainWindow::button_press (GdkEventButton * event)
 
     if (event->button == 3 && event->type == GDK_BUTTON_PRESS)
     {
-        menu_popup (UI_MENU_MAIN, event->x_root, event->y_root, false, false,
-         event->button, event->time);
+        menu_popup (UI_MENU_MAIN, event->x_root, event->y_root, false, false, event);
         return true;
     }
 
@@ -538,7 +542,7 @@ bool MainWindow::motion (GdkEventMotion * event)
         if (! m_popup_shown)
         {
             m_popup_timer.queue (aud_get_int ("filepopup_delay") * 100,
-             audgui_infopopup_show_current);
+             mainwin_show_infopopup);
             m_popup_shown = true;
         }
     }
@@ -566,8 +570,7 @@ bool MainWindow::leave ()
 
 static void mainwin_playback_rpress (Button * button, GdkEventButton * event)
 {
-    menu_popup (UI_MENU_PLAYBACK, event->x_root, event->y_root, false, false,
-     event->button, event->time);
+    menu_popup (UI_MENU_PLAYBACK, event->x_root, event->y_root, false, false, event);
 }
 
 bool Window::keypress (GdkEventKey * event)
@@ -890,7 +893,10 @@ void mainwin_mr_change (MenuRowItem i)
             mainwin_lock_info_text (_("File Info Box"));
             break;
         case MENUROW_SCALE:
-            mainwin_lock_info_text (_("Double Size"));
+            if (aud_get_bool ("skins", "double_size"))
+                mainwin_lock_info_text (_("Disable 'Double Size'"));
+            else
+                mainwin_lock_info_text (_("Enable 'Double Size'"));
             break;
         case MENUROW_VISUALIZATION:
             mainwin_lock_info_text (_("Visualizations"));
@@ -905,7 +911,7 @@ void mainwin_mr_release (MenuRowItem i, GdkEventButton * event)
     switch (i)
     {
         case MENUROW_OPTIONS:
-            menu_popup (UI_MENU_VIEW, event->x_root, event->y_root, false, false, 1, event->time);
+            menu_popup (UI_MENU_VIEW, event->x_root, event->y_root, false, false, event);
             break;
         case MENUROW_ALWAYS:
             view_set_on_top (! aud_get_bool ("skins", "always_on_top"));
@@ -939,8 +945,7 @@ static bool mainwin_info_button_press (GdkEventButton * event)
 {
     if (event->type == GDK_BUTTON_PRESS && event->button == 3)
     {
-        menu_popup (UI_MENU_PLAYBACK, event->x_root, event->y_root, false,
-         false, event->button, event->time);
+        menu_popup (UI_MENU_PLAYBACK, event->x_root, event->y_root, false, false, event);
         return true;
     }
 
@@ -1160,7 +1165,7 @@ void MainWindow::draw (cairo_t * cr)
     int height = is_shaded () ? MAINWIN_SHADED_HEIGHT : skin.hints.mainwin_height;
 
     skin_draw_pixbuf (cr, SKIN_MAIN, 0, 0, 0, 0, width, height);
-    skin_draw_mainwin_titlebar (cr, is_shaded (), true);
+    skin_draw_mainwin_titlebar (cr, is_shaded (), is_focused ());
 }
 
 static void mainwin_create_window ()
@@ -1168,6 +1173,7 @@ static void mainwin_create_window ()
     bool shaded = aud_get_bool ("skins", "player_shaded");
 
     mainwin = new MainWindow (shaded);
+    mainwin->setWindowRole("mainwindow");
 
     GtkWidget * w = mainwin->gtk ();
     drag_dest_set (w);

@@ -81,6 +81,10 @@ static void configure_visualizations()
 }
 
 static void show_search_tool() { hook_call("qtui show search tool", nullptr); }
+static void show_playback_history()
+{
+    hook_call("qtui show playback history", nullptr);
+}
 static void show_playlist_manager()
 {
     hook_call("qtui show playlist manager", nullptr);
@@ -164,6 +168,9 @@ QMenuBar * qtui_build_menubar(QWidget * parent)
         audqt::MenuCommand(
             {N_("Song _Info ..."), "dialog-information", "Ctrl+I"},
             audqt::infowin_show_current),
+        audqt::MenuCommand(
+            {N_("Playback Histor_y ..."), "view-history", "Ctrl+H"},
+            show_playback_history),
         audqt::MenuSep(),
         audqt::MenuCommand({N_("Set Repeat Point _A"), nullptr, "Ctrl+1"},
                            set_ab_repeat_a),
@@ -190,6 +197,9 @@ QMenuBar * qtui_build_menubar(QWidget * parent)
         audqt::MenuCommand({N_("By _File Path")}, sort_path),
         audqt::MenuCommand({N_("By _Custom Title")}, sort_custom_title),
         audqt::MenuCommand({N_("By C_omment")}, sort_comment),
+        audqt::MenuCommand({N_("By D_isc Number")}, sort_disc),
+        audqt::MenuCommand({N_("By File Created")}, sort_file_created),
+        audqt::MenuCommand({N_("By File Modified")}, sort_file_modified),
         audqt::MenuSep(),
         audqt::MenuCommand({N_("R_everse Order"), "view-sort-descending"},
                            sort_reverse),
@@ -207,6 +217,9 @@ QMenuBar * qtui_build_menubar(QWidget * parent)
         audqt::MenuCommand({N_("By _File Path")}, sort_sel_path),
         audqt::MenuCommand({N_("By _Custom Title")}, sort_sel_custom_title),
         audqt::MenuCommand({N_("By C_omment")}, sort_sel_comment),
+        audqt::MenuCommand({N_("By D_isc Number")}, sort_sel_disc),
+        audqt::MenuCommand({N_("By File Created")}, sort_sel_file_created),
+        audqt::MenuCommand({N_("By File Modified")}, sort_sel_file_modified),
         audqt::MenuSep(),
         audqt::MenuCommand({N_("R_everse Order"), "view-sort-descending"},
                            sort_sel_reverse),
@@ -307,7 +320,7 @@ QMenu * qtui_build_pl_menu(QWidget * parent)
         audqt::MenuCommand({N_("_Paste"), "edit-paste", "Ctrl+V"}, pl_paste),
         audqt::MenuCommand({N_("Paste at _End"), "edit-paste", "Shift+Ctrl+V"},
                            pl_paste_end),
-        audqt::MenuCommand({N_("Select _All"), "edit-select-all"},
+        audqt::MenuCommand({N_("Select _All"), "edit-select-all", "Ctrl+A"},
                            pl_select_all),
         audqt::MenuSep(),
         audqt::MenuSub({N_("_Services")}, services_menu_pl)};

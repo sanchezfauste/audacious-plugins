@@ -53,24 +53,23 @@ public:
 
     constexpr FileWriter () : OutputPlugin (info, 0, true) {}
 
-    bool init ();
+    bool init () override;
 
-    StereoVolume get_volume () { return {0, 0}; }
-    void set_volume (StereoVolume v) {}
+    StereoVolume get_volume () override { return {0, 0}; }
+    void set_volume (StereoVolume v) override {}
 
-    void set_info (const char * filename, const Tuple & tuple);
-    bool open_audio (int fmt, int rate, int nch, String & error);
-    void close_audio ();
+    void set_info (const char * filename, const Tuple & tuple) override;
+    bool open_audio (int fmt, int rate, int nch, String & error) override;
+    void close_audio () override;
 
-    void period_wait () {}
-    int write_audio (const void * ptr, int length);
-    void drain () {}
+    void period_wait () override {}
+    int write_audio (const void * ptr, int length) override;
+    void drain () override {}
 
-    int get_delay ()
-        { return 0; }
+    int get_delay () override { return 0; }
 
-    void pause (bool pause) {}
-    void flush () {}
+    void pause (bool pause) override {}
+    void flush () override {}
 };
 
 EXPORT FileWriter aud_plugin_instance;
@@ -249,7 +248,7 @@ static StringBuf format_filename (const char * suffix)
     {
         int number = in_tuple.get_int (Tuple::Track);
         if (number >= 0)
-            str_append_printf (filename, "%d%%20", number);
+            str_append_printf (filename, "%02d%%20", number);
     }
 
     if (aud_get_bool ("filewriter", "filenamefromtags"))
@@ -427,22 +426,22 @@ static const ComboItem mp3_sample_rates[] = {
 };
 
 static const ComboItem mp3_bitrates[] = {
-    ComboItem(N_("8 kbps"), 8),
-    ComboItem(N_("16 kbps"), 16),
-    ComboItem(N_("32 kbps"), 32),
-    ComboItem(N_("40 kbps"), 40),
-    ComboItem(N_("48 kbps"), 48),
-    ComboItem(N_("56 kbps"), 56),
-    ComboItem(N_("64 kbps"), 64),
-    ComboItem(N_("80 kbps"), 80),
-    ComboItem(N_("96 kbps"), 96),
-    ComboItem(N_("112 kbps"), 112),
-    ComboItem(N_("128 kbps"), 128),
-    ComboItem(N_("160 kbps"), 160),
-    ComboItem(N_("192 kbps"), 192),
-    ComboItem(N_("224 kbps"), 224),
-    ComboItem(N_("256 kbps"), 256),
-    ComboItem(N_("320 kbps"), 320)
+    ComboItem(N_("8 kbit/s"), 8),
+    ComboItem(N_("16 kbit/s"), 16),
+    ComboItem(N_("32 kbit/s"), 32),
+    ComboItem(N_("40 kbit/s"), 40),
+    ComboItem(N_("48 kbit/s"), 48),
+    ComboItem(N_("56 kbit/s"), 56),
+    ComboItem(N_("64 kbit/s"), 64),
+    ComboItem(N_("80 kbit/s"), 80),
+    ComboItem(N_("96 kbit/s"), 96),
+    ComboItem(N_("112 kbit/s"), 112),
+    ComboItem(N_("128 kbit/s"), 128),
+    ComboItem(N_("160 kbit/s"), 160),
+    ComboItem(N_("192 kbit/s"), 192),
+    ComboItem(N_("224 kbit/s"), 224),
+    ComboItem(N_("256 kbit/s"), 256),
+    ComboItem(N_("320 kbit/s"), 320)
 };
 
 static const ComboItem mp3_modes[] = {

@@ -1,10 +1,18 @@
-﻿//audacious includes
+﻿/*
+ * Scrobbler Plugin v2.0 for Audacious by Pitxyoki
+ *
+ * Copyright 2012-2013 Luís Picciochi Oliveira <Pitxyoki@Gmail.com>
+ *
+ * This plugin is part of the Audacious Media Player.
+ * It is licensed under the GNU General Public License, version 3.
+ */
+
+//audacious includes
 #include <libaudcore/audstrings.h>
 #include <libaudcore/hook.h>
 
 //plugin includes
 #include "scrobbler.h"
-
 
 //shared variables
 gboolean          permission_check_requested   = false;
@@ -12,13 +20,13 @@ gboolean          invalidate_session_requested = false;
 enum permission perm_result                  = PERMISSION_UNKNOWN;
 String          username;
 
+//static (private) variables
+static QueuedFunc permission_check_timer;
 
-static gboolean permission_checker_thread (void *) {
+static void permission_checker_thread () {
     if (permission_check_requested == true) {
         //the answer hasn't arrived yet
         hook_call("ui show progress", (void *)N_("Checking Last.fm access ..."));
-        return true;
-
     } else {
         //the answer has arrived
         hook_call("ui hide progress", nullptr);
@@ -32,17 +40,15 @@ static gboolean permission_checker_thread (void *) {
             hook_call("ui show info", (void *)(const char *)str_printf
              (_("Permission granted.  Scrobbling for user %s."),
              (const char *)username));
-
         } else if (perm_result == PERMISSION_DENIED) {
             auto msg1 = _("Permission denied.  Open the following "
              "URL in a browser, allow Audacious access to your account, and "
              "then click 'Check Permission' again:");
-            auto url = str_printf("http://www.last.fm/api/auth/?api_key=%s"
+            auto url = str_printf("https://www.last.fm/api/auth/?api_key=%s"
              "&token=%s", SCROBBLER_API_KEY, (const char *)request_token);
 
             hook_call("ui show error", (void *)(const char *)str_concat
              ({msg1, "\n\n", url, "\n\n", msg2}));
-
         } else if (perm_result == PERMISSION_NONET) {
             auto msg1 = _("There was a problem contacting Last.fm.");
 
@@ -51,7 +57,7 @@ static gboolean permission_checker_thread (void *) {
         }
 
         perm_result = PERMISSION_UNKNOWN;
-        return false;
+        permission_check_timer.stop();
     }
 }
 
@@ -70,7 +76,7 @@ static void permission_checker () {
     pthread_mutex_unlock(&communication_mutex);
 
     //The button is clicked. Wait for the permission check to be done.
-    g_timeout_add(250, permission_checker_thread, nullptr);
+    permission_check_timer.start(250, permission_checker_thread);
 }
 
 static void revoke_permissions () {

@@ -106,6 +106,9 @@ static void insert_str_tuple_to_vc (FLAC__StreamMetadata * vc_block,
     FLAC__StreamMetadata_VorbisComment_Entry entry;
     String val = tuple.get_str (field);
 
+    FLAC__metadata_object_vorbiscomment_remove_entries_matching(vc_block,
+        field_name);
+
     if (! val)
         return;
 
@@ -122,6 +125,9 @@ static void insert_int_tuple_to_vc (FLAC__StreamMetadata * vc_block,
     FLAC__StreamMetadata_VorbisComment_Entry entry;
     int val = tuple.get_int (field);
 
+    FLAC__metadata_object_vorbiscomment_remove_entries_matching(vc_block,
+        field_name);
+
     if (val <= 0)
         return;
 
@@ -134,11 +140,17 @@ static void insert_int_tuple_to_vc (FLAC__StreamMetadata * vc_block,
 
 bool FLACng::write_tuple(const char *filename, VFSFile &file, const Tuple &tuple)
 {
+    if (is_ogg_flac(file))
+    {
+        AUDERR("Writing Ogg FLAC tags is not currently supported!\n");
+        return false;
+    }
+
     AUDDBG("Update song tuple.\n");
 
     FLAC__Metadata_Iterator *iter;
     FLAC__Metadata_Chain *chain;
-    FLAC__StreamMetadata *vc_block;
+    FLAC__StreamMetadata *vc_block = nullptr;
     FLAC__Metadata_ChainStatus status;
 
     chain = FLAC__metadata_chain_new();
@@ -154,12 +166,16 @@ bool FLACng::write_tuple(const char *filename, VFSFile &file, const Tuple &tuple
     {
         if (FLAC__metadata_iterator_get_block_type(iter) == FLAC__METADATA_TYPE_VORBIS_COMMENT)
         {
-            FLAC__metadata_iterator_delete_block(iter, true);
+            vc_block = FLAC__metadata_iterator_get_block(iter);
             break;
         }
     }
 
-    vc_block = FLAC__metadata_object_new(FLAC__METADATA_TYPE_VORBIS_COMMENT);
+    if (!vc_block)
+    {
+        vc_block = FLAC__metadata_object_new(FLAC__METADATA_TYPE_VORBIS_COMMENT);
+        FLAC__metadata_iterator_insert_block_after(iter, vc_block);
+    }
 
     insert_str_tuple_to_vc(vc_block, tuple, Tuple::Title, "TITLE");
     insert_str_tuple_to_vc(vc_block, tuple, Tuple::Artist, "ARTIST");
@@ -172,8 +188,10 @@ bool FLACng::write_tuple(const char *filename, VFSFile &file, const Tuple &tuple
 
     insert_int_tuple_to_vc(vc_block, tuple, Tuple::Year, "DATE");
     insert_int_tuple_to_vc(vc_block, tuple, Tuple::Track, "TRACKNUMBER");
+    insert_int_tuple_to_vc(vc_block, tuple, Tuple::Disc, "DISCNUMBER");
 
-    FLAC__metadata_iterator_insert_block_after(iter, vc_block);
+    insert_str_tuple_to_vc(vc_block, tuple, Tuple::Publisher, "publisher");
+    insert_str_tuple_to_vc(vc_block, tuple, Tuple::CatalogNum, "CATALOGNUMBER");
 
     FLAC__metadata_iterator_delete(iter);
     FLAC__metadata_chain_sort_padding(chain);
@@ -233,6 +251,9 @@ static void parse_comment (Tuple & tuple, const char * key, const char * value)
         {"GENRE", Tuple::Genre},
         {"DESCRIPTION", Tuple::Description},
         {"musicbrainz_trackid", Tuple::MusicBrainzID},
+        {"publisher", Tuple::Publisher},
+        {"CATALOGNUMBER", Tuple::CatalogNum},
+        {"UNSYNCEDLYRICS", Tuple::Lyrics},
     };
 
     for (auto & tfield : tfields)
@@ -246,6 +267,8 @@ static void parse_comment (Tuple & tuple, const char * key, const char * value)
 
     if (!strcmp_nocase(key, "TRACKNUMBER"))
         tuple.set_int(Tuple::Track, atoi(value));
+    else if (!strcmp_nocase(key, "DISCNUMBER"))
+        tuple.set_int(Tuple::Disc, atoi(value));
     else if (!strcmp_nocase(key, "DATE"))
         tuple.set_int(Tuple::Year, atoi(value));
     else if (!strcmp_nocase(key, "REPLAYGAIN_TRACK_GAIN"))
@@ -275,7 +298,11 @@ bool FLACng::read_tag (const char * filename, VFSFile & file, Tuple & tuple, Ind
 
     chain = FLAC__metadata_chain_new();
 
-    if (!FLAC__metadata_chain_read_with_callbacks(chain, &file, io_callbacks))
+    auto metadata_chain_read = is_ogg_flac(file) ?
+        FLAC__metadata_chain_read_ogg_with_callbacks :
+        FLAC__metadata_chain_read_with_callbacks;
+
+    if (!metadata_chain_read(chain, &file, io_callbacks))
         goto ERR;
 
     iter = FLAC__metadata_iterator_new();
@@ -351,7 +378,7 @@ bool FLACng::read_tag (const char * filename, VFSFile & file, Tuple & tuple, Ind
 
                     if (metadata->data.picture.type == FLAC__STREAM_METADATA_PICTURE_TYPE_FRONT_COVER)
                     {
-                        AUDDBG("FLAC__STREAM_METADATA_PICTURE_TYPE_FRONT_COVER found.");
+                        AUDDBG("FLAC__STREAM_METADATA_PICTURE_TYPE_FRONT_COVER found.\n");
                         image->insert((const char *) metadata->data.picture.data, 0,
                          metadata->data.picture.data_length);
                     }

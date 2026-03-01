@@ -67,14 +67,14 @@ static void configure_effects () { audgui_show_prefs_for_plugin_type (PluginType
 static void configure_output () { audgui_show_prefs_for_plugin_type (PluginType::Output); }
 static void configure_visualizations () { audgui_show_prefs_for_plugin_type (PluginType::Vis); }
 
-static void skins_volume_up () { mainwin_set_volume_diff (5); }
-static void skins_volume_down () { mainwin_set_volume_diff (-5); }
+static void skins_volume_up () { mainwin_set_volume_diff (aud_get_int ("volume_delta")); }
+static void skins_volume_down () { mainwin_set_volume_diff (-aud_get_int ("volume_delta")); }
 
 static const AudguiMenuItem output_items[] = {
     MenuCommand (N_("Volume Up"), "audio-volume-high", '+', NO_MOD, skins_volume_up),
     MenuCommand (N_("Volume Down"), "audio-volume-low", '-', NO_MOD, skins_volume_down),
     MenuSep (),
-    MenuCommand (N_("Effects ..."), nullptr, NO_KEY, configure_effects),
+    MenuCommand (N_("Effects ..."), "preferences-system", NO_KEY, configure_effects),
     MenuSep (),
     MenuToggle (N_("Record Stream"), nullptr, 'd', NO_MOD, nullptr, "record", nullptr, "set record"),
     MenuCommand (N_("Audio Settings ..."), "audio-card", NO_KEY, configure_output)
@@ -155,7 +155,7 @@ static const AudguiMenuItem view_items[] = {
     MenuToggle (N_("Roll Up Playlist Editor"), nullptr, 'w', SHIFT_CTRL, "skins", "playlist_shaded", view_apply_playlist_shaded, "skins set playlist_shaded"),
     MenuToggle (N_("Roll Up Equalizer"), nullptr, 'w', CTRL_ALT, "skins", "equalizer_shaded", view_apply_equalizer_shaded, "skins set equalizer_shaded"),
     MenuSep (),
-    MenuCommand (N_("_Visualizations ..."), nullptr, NO_KEY, configure_visualizations)
+    MenuCommand (N_("_Visualizations ..."), "preferences-system", NO_KEY, configure_visualizations)
 };
 
 static const AudguiMenuItem playlist_add_items[] = {
@@ -204,7 +204,10 @@ static const AudguiMenuItem sort_items[] = {
     MenuCommand (N_("By File Name"), nullptr, NO_KEY, sort_filename),
     MenuCommand (N_("By File Path"), nullptr, NO_KEY, sort_path),
     MenuCommand (N_("By Custom Title"), nullptr, NO_KEY, sort_custom_title),
-    MenuCommand (N_("By Comment"), nullptr, NO_KEY, sort_comment)
+    MenuCommand (N_("By Comment"), nullptr, NO_KEY, sort_comment),
+    MenuCommand (N_("By Disc Number"), nullptr, NO_KEY, sort_disc),
+    MenuCommand (N_("By File Created"), nullptr, NO_KEY, sort_file_created),
+    MenuCommand (N_("By File Modified"), nullptr, NO_KEY, sort_file_modified)
 };
 
 static const AudguiMenuItem sort_selected_items[] = {
@@ -219,7 +222,10 @@ static const AudguiMenuItem sort_selected_items[] = {
     MenuCommand (N_("By File Name"), nullptr, NO_KEY, sort_sel_filename),
     MenuCommand (N_("By File Path"), nullptr, NO_KEY, sort_sel_path),
     MenuCommand (N_("By Custom Title"), nullptr, NO_KEY, sort_sel_custom_title),
-    MenuCommand (N_("By Comment"), nullptr, NO_KEY, sort_comment)
+    MenuCommand (N_("By Comment"), nullptr, NO_KEY, sort_comment),
+    MenuCommand (N_("By Disc Number"), nullptr, NO_KEY, sort_sel_disc),
+    MenuCommand (N_("By File Created"), nullptr, NO_KEY, sort_sel_file_created),
+    MenuCommand (N_("By File Modified"), nullptr, NO_KEY, sort_sel_file_modified)
 };
 
 static const AudguiMenuItem playlist_sort_items[] = {
@@ -285,6 +291,7 @@ GtkAccelGroup * menu_get_accel_group ()
     return accel;
 }
 
+#ifndef USE_GTK3
 typedef struct {
     int x, y;
     gboolean leftward, upward;
@@ -310,10 +317,16 @@ static void position_menu (GtkMenu * menu, int * x, int * y, gboolean * push_in,
     else
         * y = aud::min (pos->y, geom.y + geom.height - request.height);
 }
+#endif
 
 void menu_popup (int id, int x, int y, gboolean leftward, gboolean upward,
- int button, int time)
+ const GdkEventButton * event)
 {
+#ifdef USE_GTK3
+    gtk_menu_popup_at_pointer ((GtkMenu *) menus[id], (const GdkEvent *) event);
+#else
     const MenuPosition pos = {x, y, leftward, upward};
-    gtk_menu_popup ((GtkMenu *) menus[id], nullptr, nullptr, position_menu, (void *) & pos, button, time);
+    gtk_menu_popup ((GtkMenu *) menus[id], nullptr, nullptr, position_menu,
+     (void *) & pos, event->button, event->time);
+#endif
 }

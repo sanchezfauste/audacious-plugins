@@ -1,5 +1,10 @@
-sndio_dep = cxx.find_library('sndio', required: false)
+sndio_dep = dependency('sndio', required: false)
 have_sndio = sndio_dep.found()
+
+
+if sndio_dep.version().version_compare('>= 1.9.0')
+  conf.set10('HAVE_SNDIO_1_9', true)
+endif
 
 
 if have_sndio
@@ -7,7 +12,6 @@ if have_sndio
     'sndio.cc',
     dependencies: [audacious_dep, sndio_dep],
     name_prefix: '',
-    link_args: ['-lsndio'],
     install: true,
     install_dir: output_plugin_dir
   )

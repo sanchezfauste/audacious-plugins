@@ -57,14 +57,14 @@ static void configure_visualizations () { audqt::prefswin_show_plugin_page (Plug
 static void pl_import () { audqt::fileopener_show (audqt::FileMode::ImportPlaylist); }
 static void pl_export () { audqt::fileopener_show (audqt::FileMode::ExportPlaylist); }
 
-static void skins_volume_up () { mainwin_set_volume_diff (5); }
-static void skins_volume_down () { mainwin_set_volume_diff (-5); }
+static void skins_volume_up () { mainwin_set_volume_diff (aud_get_int ("volume_delta")); }
+static void skins_volume_down () { mainwin_set_volume_diff (-aud_get_int ("volume_delta")); }
 
 static const audqt::MenuItem output_items[] = {
     audqt::MenuCommand ({N_("Volume Up"), "audio-volume-high", "+"}, skins_volume_up),
     audqt::MenuCommand ({N_("Volume Down"), "audio-volume-low", "-"}, skins_volume_down),
     audqt::MenuSep (),
-    audqt::MenuCommand ({N_("Effects ...")}, configure_effects),
+    audqt::MenuCommand ({N_("Effects ..."), "preferences-system"}, configure_effects),
     audqt::MenuSep (),
     audqt::MenuToggle ({N_("Record Stream"), "media-record", "D"}, {nullptr, "record", "set record"}),
     audqt::MenuCommand ({N_("Audio Settings ..."), "audio-card"}, configure_output)
@@ -90,6 +90,7 @@ static const audqt::MenuItem main_items[] = {
 
 static const audqt::MenuItem playback_items[] = {
     audqt::MenuCommand ({N_("Song Info ..."), "dialog-information", "I"}, audqt::infowin_show_current),
+    audqt::MenuCommand ({N_("Playback History ..."), "view-history", "H"}, action_playback_history),
     audqt::MenuSep (),
     audqt::MenuToggle ({N_("Repeat"), "media-playlist-repeat", "R"}, {nullptr, "repeat", "set repeat"}),
     audqt::MenuToggle ({N_("Shuffle"), "media-playlist-shuffle", "S"}, {nullptr, "shuffle", "set shuffle"}),
@@ -108,9 +109,9 @@ static const audqt::MenuItem playback_items[] = {
     audqt::MenuSep (),
     audqt::MenuCommand ({N_("Set A-B Repeat"), nullptr, "A"}, action_ab_set),
     audqt::MenuCommand ({N_("Clear A-B Repeat"), nullptr, "Shift+A"}, action_ab_clear),
-#if 0
     audqt::MenuSep (),
-    audqt::MenuCommand ({N_("Jump to Song ..."), "go-jump", "J"}, audgui_jump_to_track),
+    audqt::MenuCommand ({N_("Jump to Song ..."), "go-jump", "J"}, aud_ui_show_jump_to_song),
+#if 0
     audqt::MenuCommand ({N_("Jump to Time ..."), "go-jump", "Ctrl+J"}, audgui_jump_to_time)
 #endif
 };
@@ -150,7 +151,7 @@ static const audqt::MenuItem view_items[] = {
     audqt::MenuToggle ({N_("Roll Up Playlist Editor"), nullptr, "Shift+Ctrl+W"}, {"skins", "playlist_shaded", "skins set playlist_shaded"}, view_apply_playlist_shaded),
     audqt::MenuToggle ({N_("Roll Up Equalizer"), nullptr, "Ctrl+Alt+W"}, {"skins", "equalizer_shaded", "skins set equalizer_shaded"}, view_apply_equalizer_shaded),
     audqt::MenuSep (),
-    audqt::MenuCommand ({N_("_Visualizations ...")}, configure_visualizations)
+    audqt::MenuCommand ({N_("_Visualizations ..."), "preferences-system"}, configure_visualizations)
 };
 
 static const audqt::MenuItem playlist_add_items[] = {
@@ -181,6 +182,8 @@ static const audqt::MenuItem playlist_remove_items[] = {
 };
 
 static const audqt::MenuItem playlist_select_items[] = {
+    audqt::MenuCommand ({N_("Search and Select"), "edit-find", "Ctrl+F"}, action_playlist_search_and_select),
+    audqt::MenuSep (),
     audqt::MenuCommand ({N_("Invert Selection")}, pl_select_invert),
     audqt::MenuCommand ({N_("Select None"), nullptr, "Shift+Ctrl+A"}, pl_select_none),
     audqt::MenuCommand ({N_("Select All"), "edit-select-all", "Ctrl+A"}, pl_select_all),
@@ -198,7 +201,10 @@ static const audqt::MenuItem sort_items[] = {
     audqt::MenuCommand ({N_("By File Name")}, sort_filename),
     audqt::MenuCommand ({N_("By File Path")}, sort_path),
     audqt::MenuCommand ({N_("By Custom Title")}, sort_custom_title),
-    audqt::MenuCommand ({N_("By Comment")}, sort_comment)
+    audqt::MenuCommand ({N_("By Comment")}, sort_comment),
+    audqt::MenuCommand ({N_("By Disc Number")}, sort_disc),
+    audqt::MenuCommand ({N_("By File Created")}, sort_file_created),
+    audqt::MenuCommand ({N_("By File Modified")}, sort_file_modified)
 };
 
 static const audqt::MenuItem sort_selected_items[] = {
@@ -213,7 +219,10 @@ static const audqt::MenuItem sort_selected_items[] = {
     audqt::MenuCommand ({N_("By File Name")}, sort_sel_filename),
     audqt::MenuCommand ({N_("By File Path")}, sort_sel_path),
     audqt::MenuCommand ({N_("By Custom Title")}, sort_sel_custom_title),
-    audqt::MenuCommand ({N_("By Comment")}, sort_sel_comment)
+    audqt::MenuCommand ({N_("By Comment")}, sort_sel_comment),
+    audqt::MenuCommand ({N_("By Disc Number")}, sort_sel_disc),
+    audqt::MenuCommand ({N_("By File Created")}, sort_sel_file_created),
+    audqt::MenuCommand ({N_("By File Modified")}, sort_sel_file_modified)
 };
 
 static const audqt::MenuItem playlist_sort_items[] = {

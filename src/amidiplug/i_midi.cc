@@ -23,20 +23,15 @@
 
 #include "i_midi.h"
 
-#include <stdlib.h>
-#include <string.h>
-
 #include <libaudcore/audstrings.h>
 #include <libaudcore/runtime.h>
 #include <libaudcore/vfs.h>
-
-#include "i_configure.h"
 
 #define MAKE_ID(c1, c2, c3, c4) ((c1) | ((c2) << 8) | ((c3) << 16) | ((c4) << 24))
 
 #define WARNANDBREAK(...) { AUDERR (__VA_ARGS__); break; }
 
-#define ERRMSG_MIDITRACK() { AUDERR ("%s: invalid MIDI data (offset %#x)", \
+#define ERRMSG_MIDITRACK() { AUDERR ("%s: invalid MIDI data (offset %#x)\n", \
     (const char *) file_name, file_offset); return false; }
 
 
@@ -68,10 +63,10 @@ int midifile_t::read_byte ()
 int midifile_t::read_32_le ()
 {
     int value;
-    value = read_byte ();
-    value |= read_byte () << 8;
-    value |= read_byte () << 16;
-    value |= read_byte () << 24;
+    value = (read_byte () & 0xFF);
+    value |= (read_byte () & 0xFF) << 8;
+    value |= (read_byte () & 0xFF) << 16;
+    value |= (read_byte () & 0xFF) << 24;
     return !file_eof ? value : -1;
 }
 

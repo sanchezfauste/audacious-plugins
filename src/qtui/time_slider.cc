@@ -49,14 +49,12 @@ class TimeSliderStyle : public QProxyStyle
 public:
     TimeSliderStyle()
     {
-        // detect and respond to application-wide style change
-        connect(qApp->style(), &QObject::destroyed, this,
-                &TimeSliderStyle::resetBaseStyle);
+        audqt::setup_proxy_style(this);
     }
 
     int styleHint(QStyle::StyleHint hint, const QStyleOption * option = nullptr,
                   const QWidget * widget = nullptr,
-                  QStyleHintReturn * returnData = nullptr) const
+                  QStyleHintReturn * returnData = nullptr) const override
     {
         int styleHint =
             QProxyStyle::styleHint(hint, option, widget, returnData);
@@ -65,14 +63,6 @@ public:
             styleHint |= Qt::LeftButton;
 
         return styleHint;
-    }
-
-private:
-    void resetBaseStyle()
-    {
-        setBaseStyle(nullptr);
-        connect(qApp->style(), &QObject::destroyed, this,
-                &TimeSliderStyle::resetBaseStyle);
     }
 };
 

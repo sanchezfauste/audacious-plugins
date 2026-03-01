@@ -17,10 +17,7 @@
  * the use of this software.
  */
 
-#include <errno.h>
-#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include <gio/gio.h>
 #include <glib/gstdio.h>
@@ -58,8 +55,8 @@ public:
 
     constexpr DeleteFiles () : GeneralPlugin (info, false) {}
 
-    bool init ();
-    void cleanup ();
+    bool init () override;
+    void cleanup () override;
 };
 
 EXPORT DeleteFiles aud_plugin_instance;
@@ -92,7 +89,7 @@ static bool delete_uri (const char * uri, bool use_trash)
         g_error_free (gerror);
     }
 
-    g_object_unref ((GObject *) gfile);
+    g_object_unref (gfile);
     return success;
 }
 
@@ -172,7 +169,7 @@ public:
 
         /* make sure selection matches what we actually deleted */
         int num_entries = m_playlist.n_entries ();
-        for (int i = 0; i < num_entries; i++)
+        for (int i = 0; i < num_entries; i ++)
         {
             int j = deleted.bsearch (m_playlist.entry_filename (i), string_compare);
             m_playlist.select_entry (i, (j >= 0));
@@ -228,13 +225,14 @@ static void start_delete ()
         qdialog->setAttribute (Qt::WA_DeleteOnClose);
         qdialog->setIcon (QMessageBox::Question);
         qdialog->setWindowTitle (_("Delete Files"));
+        qdialog->setWindowRole ("message");
         qdialog->setText ((const char *) prompt);
 
         auto remove = new QPushButton (action, qdialog);
         auto cancel = new QPushButton (_("Cancel"), qdialog);
 
-        remove->setIcon (audqt::get_icon (icon));
-        cancel->setIcon (audqt::get_icon ("process-stop"));
+        remove->setIcon (QIcon::fromTheme (icon));
+        cancel->setIcon (QIcon::fromTheme ("process-stop"));
 
         qdialog->addButton (remove, QMessageBox::AcceptRole);
         qdialog->addButton (cancel, QMessageBox::RejectRole);
@@ -258,8 +256,6 @@ const char * const DeleteFiles::defaults[] = {
 
 bool DeleteFiles::init ()
 {
-    g_type_init ();
-
     aud_config_set_defaults ("delete_files", defaults);
 
     for (AudMenuID menu : menus)

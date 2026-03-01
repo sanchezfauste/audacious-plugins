@@ -22,6 +22,7 @@
 #include <glib.h>
 
 #include <QApplication>
+#include <QGuiApplication>
 #include <QPointer>
 
 #include <libaudcore/audstrings.h>
@@ -40,7 +41,6 @@
 #include "skins_cfg.h"
 #include "equalizer.h"
 #include "main.h"
-#include "vis-callbacks.h"
 #include "playlistwin.h"
 #include "skin.h"
 #include "window.h"
@@ -70,23 +70,23 @@ public:
 
     constexpr QtSkins () : audqt::QtIfacePlugin (info) {}
 
-    bool init ();
+    bool init () override;
 
-    void cleanup ()
+    void cleanup () override
     {
         delete proxy;
         audqt::cleanup ();
     }
 
-    void run () { QApplication::exec (); }
+    void run () override { QApplication::exec (); }
 
-    void quit ()
+    void quit () override
     {
         QObject::connect (proxy.data (), & QObject::destroyed, QApplication::quit);
         proxy->deleteLater ();
     }
 
-    void show (bool show)
+    void show (bool show) override
     {
         if (proxy)
             view_show_player (show);
@@ -166,10 +166,24 @@ bool QtSkins::init ()
 {
     skins_cfg_load ();
 
-    if (! load_initial_skin ())
-        return false;
-
+    // At least one 3rd-party QImage plugin will abort() if loaded before
+    // QGuiApplication, so call audqt::init() before loading the skin!
     audqt::init ();
+
+    if (! load_initial_skin ())
+    {
+        audqt::cleanup ();
+        return false;
+    }
+
+    if (QGuiApplication::platformName() == "wayland")
+    {
+        AUDERR ("The Winamp interface is not supported on Wayland. "
+                "Please run Audacious via XWayland.\n");
+        audqt::cleanup ();
+        return false;
+    }
+
     skins_init_main (false);
 
     create_plugin_windows ();

@@ -34,8 +34,6 @@
  * USA.
  */
 
-#include <stdlib.h>
-
 #include <X11/XF86keysym.h>
 
 #include <gdk/gdk.h>
@@ -63,8 +61,8 @@ public:
 
     constexpr GlobalHotkeys() : GeneralPlugin(info, false) {}
 
-    bool init();
-    void cleanup();
+    bool init() override;
+    void cleanup() override;
 };
 
 EXPORT GlobalHotkeys aud_plugin_instance;
@@ -96,6 +94,15 @@ bool GlobalHotkeys::init()
         return false;
     }
 
+#ifdef USE_GTK3
+    /* Check for X11 to prevent segfaults on Wayland, supported since GTK 3 */
+    if (!GDK_IS_X11_DISPLAY(gdk_display_get_default()))
+    {
+        AUDERR("Global Hotkeys plugin only supports X11, not Wayland.\n");
+        return false;
+    }
+#endif
+
     setup_filter();
     load_config();
     grab_keys();
@@ -104,39 +111,26 @@ bool GlobalHotkeys::init()
 }
 
 /* handle keys */
-gboolean handle_keyevent(EVENT event)
+bool handle_keyevent(EVENT event)
 {
     int current_volume, old_volume;
     static int volume_static = 0;
-    gboolean mute;
 
     /* get current volume */
     current_volume = aud_drct_get_volume_main();
     old_volume = current_volume;
-    if (current_volume)
-    {
-        /* volume is not mute */
-        mute = false;
-    }
-    else
-    {
-        /* volume is mute */
-        mute = true;
-    }
 
     /* mute the playback */
     if (event == EVENT_MUTE)
     {
-        if (!mute)
+        if (current_volume != 0)
         {
             volume_static = current_volume;
             aud_drct_set_volume_main(0);
-            mute = true;
         }
         else
         {
             aud_drct_set_volume_main(volume_static);
-            mute = false;
         }
         return true;
     }
@@ -144,13 +138,6 @@ gboolean handle_keyevent(EVENT event)
     /* decrease volume */
     if (event == EVENT_VOL_DOWN)
     {
-        if (mute)
-        {
-            current_volume = old_volume;
-            old_volume = 0;
-            mute = false;
-        }
-
         if ((current_volume -= aud_get_int("volume_delta")) < 0)
         {
             current_volume = 0;
@@ -161,20 +148,12 @@ gboolean handle_keyevent(EVENT event)
             aud_drct_set_volume_main(current_volume);
         }
 
-        old_volume = current_volume;
         return true;
     }
 
     /* increase volume */
     if (event == EVENT_VOL_UP)
     {
-        if (mute)
-        {
-            current_volume = old_volume;
-            old_volume = 0;
-            mute = false;
-        }
-
         if ((current_volume += aud_get_int("volume_delta")) > 100)
         {
             current_volume = 100;
@@ -185,7 +164,6 @@ gboolean handle_keyevent(EVENT event)
             aud_drct_set_volume_main(current_volume);
         }
 
-        old_volume = current_volume;
         return true;
     }
 
@@ -217,10 +195,24 @@ gboolean handle_keyevent(EVENT event)
         return true;
     }
 
+    /* prev album */
+    if (event == EVENT_PREV_ALBUM)
+    {
+        aud_drct_pl_prev_album();
+        return true;
+    }
+
     /* next track */
     if (event == EVENT_NEXT_TRACK)
     {
         aud_drct_pl_next();
+        return true;
+    }
+
+    /* next album */
+    if (event == EVENT_NEXT_ALBUM)
+    {
+        aud_drct_pl_next_album();
         return true;
     }
 
@@ -362,6 +354,7 @@ void load_config()
     if (max == 0)
         load_defaults();
     else
+    {
         for (i = 0; i < max; i++)
         {
             char * text = nullptr;
@@ -392,6 +385,7 @@ void load_config()
             hotkey->event = (EVENT)aud_get_int("globalHotkey", text);
             g_free(text);
         }
+    }
 }
 
 /* save plugin configuration */

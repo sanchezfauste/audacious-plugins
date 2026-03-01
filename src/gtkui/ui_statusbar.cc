@@ -24,6 +24,7 @@
 #include <libaudcore/mainloop.h>
 #include <libaudcore/playlist.h>
 #include <libaudcore/runtime.h>
+#include <libaudgui/gtk-compat.h>
 
 #include "ui_statusbar.h"
 
@@ -78,7 +79,7 @@ static void ui_statusbar_info_change (void *, void * label)
     }
 
     if (bitrate > 0)
-        str_append_printf (buf, _("%d kbps"), bitrate / 1000);
+        str_append_printf (buf, _("%d kbit/s"), bitrate / 1000);
 
     gtk_label_set_text ((GtkLabel *) label, buf);
 }
@@ -124,7 +125,7 @@ static void stop_after_each_song_toggled (void *, void * label)
     if (aud_get_bool (nullptr, "stop_after_each_song"))
         gtk_label_set_text ((GtkLabel *) label, _("Stopping after each song."));
 
-    clear_timeout.start (1000, clear_message, label);
+    clear_timeout.start (1000, std::bind (clear_message, label));
 }
 
 static void ui_statusbar_destroy_cb ()
@@ -144,7 +145,7 @@ static void ui_statusbar_destroy_cb ()
 
 GtkWidget * ui_statusbar_new ()
 {
-    GtkWidget * hbox = gtk_hbox_new (false, 3);
+    GtkWidget * hbox = audgui_hbox_new (3);
     GtkWidget * status = gtk_widget_new (GTK_TYPE_LABEL, "xalign", 0.0, nullptr);
     GtkWidget * length = gtk_widget_new (GTK_TYPE_LABEL, "xalign", 1.0, nullptr);
 

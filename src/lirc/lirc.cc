@@ -29,7 +29,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
-#include <signal.h>
 #include <stdlib.h>
 
 #include <glib.h>
@@ -60,8 +59,8 @@ public:
 
     constexpr LIRCPlugin () : GeneralPlugin (info, false) {}
 
-    bool init ();
-    void cleanup ();
+    bool init () override;
+    void cleanup () override;
 };
 
 EXPORT LIRCPlugin aud_plugin_instance;

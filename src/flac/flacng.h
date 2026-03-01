@@ -43,13 +43,13 @@ public:
         .with_exts(exts)
         .with_mimes(mimes)) {}
 
-    bool init();
-    void cleanup();
+    bool init() override;
+    void cleanup() override;
 
-    bool is_our_file(const char *filename, VFSFile &file);
-    bool read_tag(const char *filename, VFSFile &file, Tuple &tuple, Index<char> *image);
-    bool write_tuple(const char *filename, VFSFile &file, const Tuple &tuple);
-    bool play(const char *filename, VFSFile &file);
+    bool is_our_file(const char *filename, VFSFile &file) override;
+    bool read_tag(const char *filename, VFSFile &file, Tuple &tuple, Index<char> *image) override;
+    bool write_tuple(const char *filename, VFSFile &file, const Tuple &tuple) override;
+    bool play(const char *filename, VFSFile &file) override;
 };
 
 #define BUFFER_SIZE_SAMP (FLAC__MAX_BLOCK_SIZE * FLAC__MAX_CHANNELS)
@@ -99,6 +99,7 @@ void error_callback(const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderError
 void metadata_callback(const FLAC__StreamDecoder *decoder, const FLAC__StreamMetadata *metadata, void *client_data);
 
 /* tools.c */
+bool is_ogg_flac(VFSFile &file);
 bool read_metadata(FLAC__StreamDecoder* decoder, callback_info* info);
 
 #endif

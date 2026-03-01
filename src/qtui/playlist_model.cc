@@ -18,7 +18,9 @@
  */
 
 #include <QApplication>
+#include <QDateTime>
 #include <QIcon>
+#include <QLocale>
 #include <QMimeData>
 #include <QUrl>
 
@@ -30,16 +32,18 @@
 #include "playlist_model.h"
 
 const char * const PlaylistModel::labels[] = {
-    N_("Entry Number"),   N_("Title"),        N_("Artist"),    N_("Year"),
-    N_("Album"),          N_("Album Artist"), N_("Track"),     N_("Genre"),
-    N_("Queue Position"), N_("Length"),       N_("File Path"), N_("File Name"),
-    N_("Custom Title"),   N_("Bitrate"),      N_("Comment")};
+    N_("Entry Number"),   N_("Title"),        N_("Artist"),       N_("Year"),
+    N_("Album"),          N_("Album Artist"), N_("Track"),        N_("Genre"),
+    N_("Queue Position"), N_("Length"),       N_("File Path"),    N_("File Name"),
+    N_("Custom Title"),   N_("Bitrate"),      N_("Comment"),      N_("Publisher"),
+    N_("Catalog Number"), N_("Disc"),         N_("File Created"), N_("File Modified")};
 
 static const Tuple::Field s_fields[] = {
-    Tuple::Invalid,        Tuple::Title,       Tuple::Artist, Tuple::Year,
-    Tuple::Album,          Tuple::AlbumArtist, Tuple::Track,  Tuple::Genre,
-    Tuple::Invalid,        Tuple::Length,      Tuple::Path,   Tuple::Basename,
-    Tuple::FormattedTitle, Tuple::Bitrate,     Tuple::Comment};
+    Tuple::Invalid,        Tuple::Title,       Tuple::Artist,      Tuple::Year,
+    Tuple::Album,          Tuple::AlbumArtist, Tuple::Track,       Tuple::Genre,
+    Tuple::Invalid,        Tuple::Length,      Tuple::Path,        Tuple::Basename,
+    Tuple::FormattedTitle, Tuple::Bitrate,     Tuple::Comment,     Tuple::Publisher,
+    Tuple::CatalogNum,     Tuple::Disc,        Tuple::FileCreated, Tuple::FileModified};
 
 static_assert(aud::n_elems(PlaylistModel::labels) == PlaylistModel::n_cols,
               "update PlaylistModel::labels");
@@ -103,6 +107,9 @@ QVariant PlaylistModel::data(const QModelIndex & index, int role) const
         {
             tuple = m_playlist.entry_tuple(index.row(), Playlist::NoWait);
 
+            if (col == Filename)
+                return filename(tuple);
+
             switch (tuple.get_value_type(s_fields[col]))
             {
             case Tuple::Empty:
@@ -112,21 +119,29 @@ QVariant PlaylistModel::data(const QModelIndex & index, int role) const
             case Tuple::Int:
                 val = tuple.get_int(s_fields[col]);
                 break;
+            case Tuple::DateTime:
+                int64_t t = tuple.get_int64(s_fields[col]);
+                if (t > 0)
+                {
+                    QDateTime dt = QDateTime::fromSecsSinceEpoch(t).toLocalTime();
+                    return QLocale().toString(dt, QLocale::ShortFormat);
+                }
+                return QString();
             }
         }
 
         switch (col)
         {
         case EntryNumber:
-            return QString("%1").arg(index.row() + 1);
+            return QVariant(index.row() + 1);
         case QueuePos:
             return queuePos(index.row());
         case Length:
             return QString(str_format_time(val));
         case Bitrate:
-            return QString("%1 kbps").arg(val);
+            return QString(str_printf(_("%d kbit/s"), val));
         default:
-            return QString("%1").arg(val);
+            return QVariant(val);
         }
 
     case Qt::FontRole:
@@ -145,8 +160,7 @@ QVariant PlaylistModel::data(const QModelIndex & index, int role) const
             if (m_playlist == Playlist::playing_playlist())
                 icon_name = aud_drct_get_paused() ? "media-playback-pause"
                                                   : "media-playback-start";
-
-            return audqt::get_icon(icon_name);
+            return QIcon::fromTheme(icon_name);
         }
         else if (col == m_playing_col)
         {
@@ -186,6 +200,10 @@ QVariant PlaylistModel::headerData(int section, Qt::Orientation orientation,
             return QString(_("Q#"));
         case Track:
             return QString(_("T#"));
+        case CatalogNum:
+            return QString(_("C#"));
+        case Disc:
+            return QString(_("D#"));
         }
 
         return QString(_(labels[col]));
@@ -291,12 +309,34 @@ QString PlaylistModel::queuePos(int row) const
         return QString("#%1").arg(at + 1);
 }
 
+QString PlaylistModel::filename(const Tuple & tuple) const
+{
+    String basename = tuple.get_str(Tuple::Basename);
+    String suffix = tuple.get_str(Tuple::Suffix);
+
+    if (suffix)
+        return QString("%1.%2").arg(
+            static_cast<const char *>(basename),
+            static_cast<const char *>(suffix));
+
+    return QString(basename);
+}
+
 /* ---------------------------------- */
 
 void PlaylistProxyModel::setFilter(const char * filter)
 {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
+    beginFilterChange();
+#endif
+
     m_searchTerms = str_list_to_index(filter, " ");
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
+    endFilterChange(QSortFilterProxyModel::Direction::Rows);
+#else
     invalidateFilter();
+#endif
 }
 
 bool PlaylistProxyModel::filterAcceptsRow(int source_row,
@@ -309,7 +349,8 @@ bool PlaylistProxyModel::filterAcceptsRow(int source_row,
 
     String strings[] = {tuple.get_str(Tuple::Title),
                         tuple.get_str(Tuple::Artist),
-                        tuple.get_str(Tuple::Album)};
+                        tuple.get_str(Tuple::Album),
+                        tuple.get_str(Tuple::Basename)};
 
     for (auto & term : m_searchTerms)
     {

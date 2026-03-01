@@ -34,6 +34,8 @@
 #include "skin.h"
 #include "playlist-widget.h"
 #include "playlist-slider.h"
+#include "playlistwin.h"
+#include "window.h"
 
 #include <libaudcore/audstrings.h>
 #include <libaudcore/hook.h>
@@ -41,6 +43,7 @@
 #include <libaudcore/runtime.h>
 #include <libaudcore/playlist.h>
 #include <libaudgui/libaudgui.h>
+#include <libaudgui/libaudgui-gtk.h>
 
 enum {
     DRAG_SELECT = 1,
@@ -683,7 +686,7 @@ bool PlaylistWidget::button_press (GdkEventButton * event)
 
             menu_popup ((position == -1) ? UI_MENU_PLAYLIST :
              UI_MENU_PLAYLIST_CONTEXT, event->x_root, event->y_root, false,
-             false, 3, event->time);
+             false, event);
             break;
           default:
             return false;
@@ -794,12 +797,13 @@ void PlaylistWidget::popup_trigger (int pos)
 
     m_popup_pos = pos;
     m_popup_timer.queue (aud_get_int ("filepopup_delay") * 100,
-     [this] () { popup_show(); });
+     [this] () { popup_show (); });
 }
 
 void PlaylistWidget::popup_show ()
 {
-    audgui_infopopup_show (m_playlist, m_popup_pos);
+    GtkWindow * parent = (GtkWindow *) playlistwin->gtk ();
+    audgui_infopopup_show (parent, m_playlist, m_popup_pos);
 }
 
 void PlaylistWidget::popup_hide ()

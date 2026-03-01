@@ -27,6 +27,7 @@
 #include <libaudcore/preferences.h>
 #include <libaudcore/mainloop.h>
 #include <libaudcore/runtime.h>
+#include <libaudgui/gtk-compat.h>
 #include <libaudgui/libaudgui-gtk.h>
 #include <libaudgui/list.h>
 #include <libaudgui/menu.h>
@@ -54,9 +55,9 @@ public:
 
     constexpr SearchTool () : GeneralPlugin (info, false) {}
 
-    bool init ();
-    void * get_gtk_widget ();
-    int take_message (const char * code, const void *, int);
+    bool init () override;
+    void * get_gtk_widget () override;
+    int take_message (const char * code, const void *, int) override;
 };
 
 EXPORT SearchTool aud_plugin_instance;
@@ -97,7 +98,7 @@ static String get_uri ()
     if (path1[0])
         return strstr (path1, "://") ? path1 : to_uri (path1);
 
-    StringBuf path2 = filename_build ({g_get_home_dir (), "Music"});
+    const char * path2 = g_get_user_special_dir (G_USER_DIRECTORY_MUSIC);
     if (g_file_test (path2, G_FILE_TEST_EXISTS))
         return to_uri (path2);
 
@@ -180,7 +181,7 @@ void Library::signal_update ()
         s_model.destroy_database ();
         s_selection.clear ();
         audgui_list_delete_rows (results_list, 0, audgui_list_row_count (results_list));
-        gtk_label_set_text ((GtkLabel *) stats_label, "");
+        gtk_label_set_text ((GtkLabel *) stats_label, nullptr);
     }
 
     show_hide_widgets ();
@@ -268,11 +269,6 @@ static void action_add_to_playlist ()
 
 static void list_get_value (void * user, int row, int column, GValue * value)
 {
-    static constexpr aud::array<SearchField, const char *> start_tags =
-        {"", "<b>", "<i>", ""};
-    static constexpr aud::array<SearchField, const char *> end_tags =
-        {"", "</b>", "</i>", ""};
-
     auto escape = [] (const char * s)
         { return CharPtr (g_markup_escape_text (s, -1)); };
 
@@ -302,7 +298,7 @@ static void list_get_value (void * user, int row, int column, GValue * value)
         auto parent = (item.parent->parent ? item.parent->parent : item.parent);
 
         desc.insert (-1, " ");
-        desc.insert (-1, (parent->field == SearchField::Album) ? _("on") : _("by"));
+        desc.insert (-1, parent_prefix (parent->field));
         desc.insert (-1, " ");
         desc.insert (-1, start_tags[parent->field]);
         desc.insert (-1, escape (parent->name));
@@ -350,7 +346,12 @@ static void list_right_click (void * user, GdkEventButton * event)
 
     GtkWidget * menu = gtk_menu_new ();
     audgui_menu_init (menu, {items}, nullptr);
+
+#ifdef USE_GTK3
+    gtk_menu_popup_at_pointer ((GtkMenu *) menu, (const GdkEvent *) event);
+#else
     gtk_menu_popup ((GtkMenu *) menu, nullptr, nullptr, nullptr, nullptr, event->button, event->time);
+#endif
 }
 
 static Index<char> list_get_data (void * user)
@@ -436,10 +437,13 @@ bool SearchTool::init ()
 
 void * SearchTool::get_gtk_widget ()
 {
-    GtkWidget * vbox = gtk_vbox_new (false, 6);
+    GtkWidget * vbox = audgui_vbox_new (6);
 
     entry = gtk_entry_new ();
     gtk_entry_set_icon_from_icon_name ((GtkEntry *) entry, GTK_ENTRY_ICON_PRIMARY, "edit-find");
+#ifdef USE_GTK3
+    gtk_entry_set_placeholder_text ((GtkEntry *) entry, _("Search library"));
+#endif
     g_signal_connect (entry, "destroy", (GCallback) gtk_widget_destroyed, & entry);
     gtk_box_pack_start ((GtkBox *) vbox, entry, false, false, 0);
 
@@ -471,12 +475,12 @@ void * SearchTool::get_gtk_widget ()
     audgui_list_add_column (results_list, nullptr, 0, G_TYPE_STRING, -1, true);
     gtk_container_add ((GtkContainer *) scrolled, results_list);
 
-    stats_label = gtk_label_new ("");
+    stats_label = gtk_label_new (nullptr);
     g_signal_connect (stats_label, "destroy", (GCallback) gtk_widget_destroyed, & stats_label);
     gtk_widget_set_no_show_all (stats_label, true);
     gtk_box_pack_start ((GtkBox *) vbox, stats_label, false, false, 0);
 
-    GtkWidget * hbox = gtk_hbox_new (false, 6);
+    GtkWidget * hbox = audgui_hbox_new (6);
     gtk_box_pack_end ((GtkBox *) vbox, hbox, false, false, 0);
 
     GtkWidget * file_entry = audgui_file_entry_new

@@ -23,7 +23,6 @@
  *  Audacious or using our public API to be a derived work.
  */
 
-#include <string.h>
 #include <gtk/gtk.h>
 
 #include <libaudcore/audstrings.h>
@@ -36,7 +35,6 @@
 #include <libaudgui/libaudgui-gtk.h>
 
 #include "menus.h"
-#include "plugin.h"
 #include "skins_cfg.h"
 #include "equalizer.h"
 #include "main.h"
@@ -45,7 +43,6 @@
 #include "eq-slider.h"
 #include "hslider.h"
 #include "window.h"
-#include "skins_util.h"
 #include "view.h"
 
 class EqWindow : public Window
@@ -56,8 +53,8 @@ public:
          shaded ? 14 : 116, shaded) {}
 
 private:
-    void draw (cairo_t * cr);
-    bool button_press (GdkEventButton * event);
+    void draw (cairo_t * cr) override;
+    bool button_press (GdkEventButton * event) override;
 };
 
 Window * equalizerwin;
@@ -106,8 +103,7 @@ bool EqWindow::button_press (GdkEventButton * event)
 
     if (event->button == 3 && event->type == GDK_BUTTON_PRESS)
     {
-        menu_popup (UI_MENU_MAIN, event->x_root, event->y_root, false, false,
-         event->button, event->time);
+        menu_popup (UI_MENU_MAIN, event->x_root, event->y_root, false, false, event);
         return true;
     }
 
@@ -254,9 +250,9 @@ void EqWindow::draw (cairo_t * cr)
     skin_draw_pixbuf (cr, SKIN_EQMAIN, 0, 0, 0, 0, 275, is_shaded () ? 14 : 116);
 
     if (is_shaded ())
-        skin_draw_pixbuf (cr, SKIN_EQ_EX, 0, 0, 0, 0, 275, 14);
+        skin_draw_pixbuf (cr, SKIN_EQ_EX, 0, is_focused () ? 0 : 15, 0, 0, 275, 14);
     else
-        skin_draw_pixbuf (cr, SKIN_EQMAIN, 0, 134, 0, 0, 275, 14);
+        skin_draw_pixbuf (cr, SKIN_EQMAIN, 0, is_focused () ? 134 : 149, 0, 0, 275, 14);
 }
 
 static void equalizerwin_create_window ()
@@ -269,6 +265,7 @@ static void equalizerwin_create_window ()
 
     equalizerwin = new EqWindow (shaded);
     equalizerwin->setWindowTitle (_("Audacious Equalizer"));
+    equalizerwin->setWindowRole ("equalizer");
 }
 
 void equalizerwin_unhook ()

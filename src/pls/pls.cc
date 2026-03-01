@@ -19,9 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include <stdlib.h>
-#include <string.h>
-
 #include <libaudcore/i18n.h>
 #include <libaudcore/plugin.h>
 #include <libaudcore/audstrings.h>
@@ -37,9 +34,9 @@ public:
     constexpr PLSLoader () : PlaylistPlugin (info, pls_exts, true) {}
 
     bool load (const char * filename, VFSFile & file, String & title,
-     Index<PlaylistAddItem> & items);
+     Index<PlaylistAddItem> & items) override;
     bool save (const char * filename, VFSFile & file, const char * title,
-     const Index<PlaylistAddItem> & items);
+     const Index<PlaylistAddItem> & items) override;
 };
 
 EXPORT PLSLoader aud_plugin_instance;
@@ -57,10 +54,10 @@ private:
     Index<PlaylistAddItem> & items;
     bool valid_heading;
 
-    void handle_heading (const char * heading)
+    void handle_heading (const char * heading) override
         { valid_heading = ! strcmp_nocase (heading, "playlist"); }
 
-    void handle_entry (const char * key, const char * value)
+    void handle_entry (const char * key, const char * value) override
     {
         if (! valid_heading || strcmp_nocase (key, "file", 4))
             return;
