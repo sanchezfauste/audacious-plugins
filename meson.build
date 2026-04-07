@@ -275,6 +275,7 @@ summary({
   'Open Sound System': get_variable('have_oss4', false),
   'PipeWire': get_variable('have_pipewire', false),
   'PulseAudio': get_variable('have_pulse', false),
+  'Qt Multimedia Output': get_variable('have_qtaudio', false),
   'Simple DirectMedia Layer': get_variable('have_sdlout', false),
   'Sndio': get_variable('have_sndio', false),
   'Win32 waveOut': have_windows or have_cygwin,
@@ -311,7 +312,6 @@ summary({
 
 if conf.has('USE_QT')
   summary({
-    'Qt Multimedia output': get_variable('have_qtaudio', false),
     'Qt Interface': get_option('qtui'),
     'Winamp Classic Interface': get_option('skins'),
     'Album Art': get_option('albumart'),
