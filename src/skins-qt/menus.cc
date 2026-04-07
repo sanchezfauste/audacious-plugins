@@ -74,7 +74,9 @@ static const audqt::MenuItem main_items[] = {
     audqt::MenuCommand ({N_("Open Files ..."), "document-open", "L"}, action_play_file),
     audqt::MenuCommand ({N_("Open Folder ..."), "document-open", "Shift+L"}, action_play_folder),
     audqt::MenuCommand ({N_("Open URL ..."), "folder-remote", "Ctrl+L"}, action_play_location),
+#ifdef HAVE_SEARCH_TOOL
     audqt::MenuCommand ({N_("Search Library"), "edit-find", "Y"}, action_search_tool),
+#endif
     audqt::MenuSep (),
     audqt::MenuSub ({N_("Playback")}, get_menu_playback),
     audqt::MenuSub ({N_("Playlist")}, get_menu_playlist),
@@ -90,7 +92,9 @@ static const audqt::MenuItem main_items[] = {
 
 static const audqt::MenuItem playback_items[] = {
     audqt::MenuCommand ({N_("Song Info ..."), "dialog-information", "I"}, audqt::infowin_show_current),
+#ifdef HAVE_PLAYBACK_HISTORY
     audqt::MenuCommand ({N_("Playback History ..."), "view-history", "H"}, action_playback_history),
+#endif
     audqt::MenuSep (),
     audqt::MenuToggle ({N_("Repeat"), "media-playlist-repeat", "R"}, {nullptr, "repeat", "set repeat"}),
     audqt::MenuToggle ({N_("Shuffle"), "media-playlist-shuffle", "S"}, {nullptr, "shuffle", "set shuffle"}),
@@ -128,7 +132,9 @@ static const audqt::MenuItem playlist_items[] = {
     audqt::MenuCommand ({N_("Import Playlist ..."), "document-open", "O"}, pl_import),
     audqt::MenuCommand ({N_("Export Playlist ..."), "document-save", "Shift+S"}, pl_export),
     audqt::MenuSep (),
+#ifdef HAVE_PLAYLIST_MANAGER
     audqt::MenuCommand ({N_("Playlist Manager ..."), "audio-x-generic", "P"}, action_playlist_manager),
+#endif
     audqt::MenuCommand ({N_("Queue Manager ..."), nullptr, "Ctrl+U"}, audqt::queue_manager_show),
     audqt::MenuSep (),
     audqt::MenuCommand ({N_("Refresh Playlist"), "view-refresh", "F5"}, pl_refresh)

@@ -82,12 +82,18 @@ static void enable_and_focus_plugin (const char * name)
     }
 }
 
+#ifdef HAVE_PLAYBACK_HISTORY
 void action_playback_history ()
     { enable_and_focus_plugin ("playback-history"); }
+#endif
+#ifdef HAVE_PLAYLIST_MANAGER
 void action_playlist_manager ()
     { enable_and_focus_plugin ("playlist-manager"); }
+#endif
+#ifdef HAVE_SEARCH_TOOL
 void action_search_tool ()
     { enable_and_focus_plugin ("search-tool"); }
+#endif
 
 void action_playlist_rename ()
     { audgui_show_playlist_rename (ACTIVE); }

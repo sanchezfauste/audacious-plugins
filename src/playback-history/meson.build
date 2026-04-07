@@ -1,3 +1,5 @@
+conf.set10('HAVE_PLAYBACK_HISTORY', true)
+
 shared_module('playback-history',
   'history-entry.cc',
   'playback-history.cc',

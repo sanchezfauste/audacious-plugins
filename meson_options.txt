@@ -9,16 +9,37 @@ option('qt5', type: 'boolean', value: false,
        description: 'Whether Qt 5 support is enabled')
 
 
-# container plugins
+# interface plugins
+option('gtkui', type: 'boolean', value: true,
+       description: 'Whether the GTK interface is enabled')
+option('qtui', type: 'boolean', value: true,
+       description: 'Whether the Qt interface is enabled')
+option('skins', type: 'boolean', value: true,
+       description: 'Whether the Winamp interface is enabled')
+
+
+# playlist plugins
+option('asx', type: 'boolean', value: true,
+       description: 'Whether ASX (v1/2) playlist support is enabled')
+option('asx3', type: 'boolean', value: true,
+       description: 'Whether ASX (v3) playlist support is enabled')
 option('cue', type: 'boolean', value: true,
-       description: 'Whether libcue support is enabled')
+       description: 'Whether cue sheet playlist support is enabled')
+option('m3u', type: 'boolean', value: true,
+       description: 'Whether M3U playlist support is enabled')
+option('pls', type: 'boolean', value: true,
+       description: 'Whether PLS playlist support is enabled')
+option('xspf', type: 'boolean', value: true,
+       description: 'Whether XSPF playlist support is enabled')
 
 
 # transport plugins
+option('gio', type: 'boolean', value: true,
+       description: 'Whether FTP/SFTP/SMB/MTP support is enabled')
 option('mms', type: 'boolean', value: true,
-       description: 'Whether the libmms MMS client is enabled')
+       description: 'Whether MMS support is enabled')
 option('neon', type: 'boolean', value: true,
-       description: 'Whether the neon HTTP client is enabled')
+       description: 'Whether HTTP/HTTPS support is enabled')
 
 
 # input plugins
@@ -29,7 +50,7 @@ option('adplug', type: 'boolean', value: true,
 option('amidiplug', type: 'boolean', value: true,
        description: 'Whether AMidiPlug plugin is enabled')
 option('cdaudio', type: 'boolean', value: true,
-       description: 'Whether CD audio support is enabled')
+       description: 'Whether Audio CD support is enabled')
 option('cdaudio-cddb', type: 'boolean', value: true,
        description: 'Whether CDDB support for the Audio CD plugin is enabled')
 option('console', type: 'boolean', value: true,
@@ -38,6 +59,8 @@ option('ffaudio', type: 'boolean', value: true,
        description: 'Whether FFmpeg support is enabled')
 option('flac', type: 'boolean', value: true,
        description: 'Whether FLAC support is enabled')
+option('metronome', type: 'boolean', value: true,
+       description: 'Whether the Tact Generator plugin is enabled')
 option('modplug', type: 'boolean', value: true,
        description: 'Whether ModPlug support is enabled')
 option('mpg123', type: 'boolean', value: true,
@@ -46,14 +69,22 @@ option('openmpt', type: 'boolean', value: true,
        description: 'Whether OpenMPT support is enabled')
 option('opus', type: 'boolean', value: true,
        description: 'Whether Opus support is enabled')
+option('psf', type: 'boolean', value: true,
+       description: 'Whether PlayStation audio support is enabled')
 option('sid', type: 'boolean', value: true,
        description: 'Whether SID emulation support is enabled')
 option('sndfile', type: 'boolean', value: true,
        description: 'Whether libsndfile support is enabled')
+option('tonegen', type: 'boolean', value: true,
+       description: 'Whether the Tone Generator plugin is enabled')
 option('vorbis', type: 'boolean', value: true,
        description: 'Whether Ogg Vorbis support is enabled')
+option('vtx', type: 'boolean', value: true,
+       description: 'Whether Vortex support is enabled')
 option('wavpack', type: 'boolean', value: true,
        description: 'Whether WavPack support is enabled')
+option('xsf', type: 'boolean', value: true,
+       description: 'Whether Nintendo DS audio support is enabled')
 
 
 # output plugins
@@ -86,41 +117,85 @@ option('sndio', type: 'boolean', value: true,
 
 
 # general plugins
+option('albumart', type: 'boolean', value: true,
+       description: 'Whether the Album Art plugin is enabled')
 option('ampache', type: 'boolean', value: true,
-       description: 'Whether the Ampache browser plugin is enabled')
+       description: 'Whether the Ampache Browser plugin is enabled')
 option('aosd', type: 'boolean', value: true,
        description: 'Whether the OSD plugin (X11) is enabled')
+option('delete-files', type: 'boolean', value: true,
+       description: 'Whether the Delete Files plugin is enabled')
+option('filebrowser', type: 'boolean', value: true,
+       description: 'Whether the File Browser plugin is enabled')
 option('hotkey', type: 'boolean', value: true,
-       description: 'Whether the global hotkey plugin (X11) is enabled')
+       description: 'Whether the Global Hotkeys plugin (X11) is enabled')
 option('lirc', type: 'boolean', value: true,
        description: 'Whether the LIRC plugin is enabled')
+option('lyrics', type: 'boolean', value: true,
+       description: 'Whether the Lyrics plugin is enabled')
 option('mac-now-playing', type: 'boolean', value: true,
        description: 'Whether the Mac Now Playing plugin is enabled')
 option('mpris2', type: 'boolean', value: true,
        description: 'Whether MPRIS 2.0 support is enabled')
 option('notify', type: 'boolean', value: true,
        description: 'Whether the libnotify OSD plugin is enabled')
+option('playback-history', type: 'boolean', value: true,
+       description: 'Whether the Playback History plugin is enabled')
+option('playlist-manager', type: 'boolean', value: true,
+       description: 'Whether the Playlist Manager plugin is enabled')
 option('scrobbler2', type: 'boolean', value: true,
        description: 'Whether the Last.fm Scrobbler plugin is enabled')
+option('searchtool', type: 'boolean', value: true,
+       description: 'Whether the Search Tool plugin is enabled')
 option('songchange', type: 'boolean', value: true,
        description: 'Whether the Song Change plugin is enabled')
+option('songinfo', type: 'boolean', value: true,
+       description: 'Whether the Song Info plugin is enabled')
+option('statusicon', type: 'boolean', value: true,
+       description: 'Whether the Status Icon plugin is enabled')
 option('streamtuner', type: 'boolean', value: false,
        description: 'Whether the Stream Tuner plugin is enabled')
 
 
 # effect plugins
+option('background-music', type: 'boolean', value: true,
+       description: 'Whether the Background Music effect plugin is enabled')
+option('bitcrusher', type: 'boolean', value: true,
+       description: 'Whether the Bitcrusher effect plugin is enabled')
 option('bs2b', type: 'boolean', value: true,
        description: 'Whether the BS2B effect plugin is enabled')
+option('compressor', type: 'boolean', value: true,
+       description: 'Whether the Dynamic Range Compressor effect plugin is enabled')
+option('crossfade', type: 'boolean', value: true,
+       description: 'Whether the Crossfade effect plugin is enabled')
+option('crystalizer', type: 'boolean', value: true,
+       description: 'Whether the Crystalizer effect plugin is enabled')
+option('echo', type: 'boolean', value: true,
+       description: 'Whether the Echo effect plugin is enabled')
+option('ladspa', type: 'boolean', value: true,
+       description: 'Whether the LADSPA Host effect plugin is enabled')
+option('mixer', type: 'boolean', value: true,
+       description: 'Whether the Channel Mixer effect plugin is enabled')
 option('resample', type: 'boolean', value: true,
-       description: 'Whether the resample effect plugin is enabled')
+       description: 'Whether the Sample Rate Converter effect plugin is enabled')
+option('silence-removal', type: 'boolean', value: true,
+       description: 'Whether the Silence Removal effect plugin is enabled')
 option('soxr', type: 'boolean', value: true,
-       description: 'Whether the SoX resampler effect plugin is enabled')
+       description: 'Whether the SoX Resampler effect plugin is enabled')
 option('speedpitch', type: 'boolean', value: true,
-       description: 'Whether the speed / pitch effect plugin is enabled')
+       description: 'Whether the Speed and Pitch effect plugin is enabled')
+option('stereo', type: 'boolean', value: true,
+       description: 'Whether the Extra Stereo effect plugin is enabled')
+option('voice-removal', type: 'boolean', value: true,
+       description: 'Whether the Voice Removal effect plugin is enabled')
 
 
 # visualization plugins
+option('blurscope', type: 'boolean', value: true,
+       description: 'Whether the Blur Scope visualization plugin is enabled')
 option('gl-spectrum', type: 'boolean', value: true,
-       description: 'Whether the OpenGL spectrum visualization plugin is enabled')
+       description: 'Whether the OpenGL Spectrum Analyzer plugin is enabled')
+option('spectrum-analyzer', type: 'boolean', value: true,
+       description: 'Whether the Spectrum Analyzer (2D) plugin is enabled')
 option('vumeter', type: 'boolean', value: true,
        description: 'Whether the VU Meter visualization plugin is enabled')

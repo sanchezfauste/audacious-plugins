@@ -1,36 +1,45 @@
 src_inc = include_directories('.')
 
 
-# input plugins
-subdir('metronom')
-subdir('psf')
-subdir('tonegen')
-subdir('vtx')
-subdir('xsf')
-
-if get_option('console')
-  subdir('console')
+# effect plugins
+if get_option('background-music')
+  subdir('background_music')
 endif
 
-
-# effect plugins
-subdir('background_music')
-subdir('bitcrusher')
-subdir('compressor')
-subdir('crossfade')
-subdir('crystalizer')
-subdir('echo_plugin')
-subdir('mixer')
-subdir('silence-removal')
-subdir('stereo_plugin')
-subdir('voice_removal')
+if get_option('bitcrusher')
+  subdir('bitcrusher')
+endif
 
 if get_option('bs2b')
   subdir('bs2b')
 endif
 
+if get_option('compressor')
+  subdir('compressor')
+endif
+
+if get_option('crossfade')
+  subdir('crossfade')
+endif
+
+if get_option('crystalizer')
+  subdir('crystalizer')
+endif
+
+if get_option('echo')
+  subdir('echo_plugin')
+endif
+
+if get_option('mixer')
+  subdir('mixer')
+endif
+
 if get_option('resample')
   subdir('resample')
+endif
+
+if get_option('silence-removal')
+  subdir('silence-removal')
 endif
 
 if get_option('soxr')
@@ -41,9 +50,19 @@ if get_option('speedpitch')
   subdir('speedpitch')
 endif
 
+if get_option('stereo')
+  subdir('stereo_plugin')
+endif
+
+if get_option('voice-removal')
+  subdir('voice_removal')
+endif
+
 
 # transport plugins
-subdir('gio')
+if get_option('gio')
+  subdir('gio')
+endif
 
 if get_option('mms')
   subdir('mms')
@@ -54,47 +73,66 @@ if get_option('neon')
 endif
 
 
-# playlist (container) plugins
-subdir('asx')
-subdir('asx3')
+# playlist plugins
+if get_option('asx')
+  subdir('asx')
+endif
+
+if get_option('asx3')
+  subdir('asx3')
+endif
+
 subdir('audpl')
-subdir('m3u')
-subdir('pls')
-subdir('xspf')
 
 if get_option('cue')
   subdir('cue')
 endif
 
+if get_option('m3u')
+  subdir('m3u')
+endif
+
+if get_option('pls')
+  subdir('pls')
+endif
+
+if get_option('xspf')
+  subdir('xspf')
+endif
+
 
 # Qt/GTK-specific plugins
 if conf.has('USE_GTK_OR_QT')
-  subdir('delete-files')
-  subdir('skins-data')
+  if get_option('delete-files')
+    subdir('delete-files')
+  endif
 
   if get_option('notify')
     subdir('notify')
+  endif
+
+  if get_option('skins')
+    subdir('skins-data')
   endif
 endif
 
 
 # Qt-specific plugins
 if conf.has('USE_QT')
-  subdir('albumart-qt')
-  subdir('blur_scope-qt')
-  subdir('filebrowser-qt')
-  subdir('lyrics-qt')
-  subdir('playback-history-qt')
-  subdir('playlist-manager-qt')
-  subdir('qt-spectrum')
-  subdir('qtui')
-  subdir('search-tool-qt')
-  subdir('skins-qt')
-  subdir('song-info-qt')
-  subdir('statusicon-qt')
+  if get_option('albumart')
+    subdir('albumart-qt')
+  endif
 
   if get_option('ampache')
     subdir('ampache')
+  endif
+
+  if get_option('blurscope')
+    subdir('blur_scope-qt')
+  endif
+
+  if get_option('filebrowser')
+    subdir('filebrowser-qt')
   endif
 
   if get_option('gl-spectrum')
@@ -105,8 +143,44 @@ if conf.has('USE_QT')
     subdir('qthotkey')
   endif
 
+  if get_option('lyrics')
+    subdir('lyrics-qt')
+  endif
+
+  if get_option('playback-history')
+    subdir('playback-history-qt')
+  endif
+
+  if get_option('playlist-manager')
+    subdir('playlist-manager-qt')
+  endif
+
   if get_option('qtaudio')
     subdir('qtaudio')
+  endif
+
+  if get_option('qtui')
+    subdir('qtui')
+  endif
+
+  if get_option('searchtool')
+    subdir('search-tool-qt')
+  endif
+
+  if get_option('skins')
+    subdir('skins-qt')
+  endif
+
+  if get_option('songinfo')
+    subdir('song-info-qt')
+  endif
+
+  if get_option('spectrum-analyzer')
+    subdir('qt-spectrum')
+  endif
+
+  if get_option('statusicon')
+    subdir('statusicon-qt')
   endif
 
   if get_option('streamtuner')
@@ -121,29 +195,64 @@ endif
 
 # GTK-specific plugins
 if conf.has('USE_GTK')
-  subdir('albumart')
-  subdir('blur_scope')
-  subdir('filebrowser')
-  subdir('cairo-spectrum')
-  subdir('gtkui')
-  subdir('ladspa')
-  subdir('lyrics-gtk')
-  subdir('playback-history')
-  subdir('playlist-manager')
-  subdir('search-tool')
-  subdir('skins')
-  subdir('statusicon')
+  if get_option('albumart')
+    subdir('albumart')
+  endif
 
   if get_option('aosd')
     subdir('aosd')
+  endif
+
+  if get_option('blurscope')
+    subdir('blur_scope')
+  endif
+
+  if get_option('filebrowser')
+    subdir('filebrowser')
   endif
 
   if get_option('gl-spectrum') and not have_darwin
     subdir('glspectrum')
   endif
 
+  if get_option('gtkui')
+    subdir('gtkui')
+  endif
+
   if get_option('hotkey')
     subdir('hotkey')
+  endif
+
+  if get_option('ladspa')
+    subdir('ladspa')
+  endif
+
+  if get_option('lyrics')
+    subdir('lyrics-gtk')
+  endif
+
+  if get_option('playback-history')
+    subdir('playback-history')
+  endif
+
+  if get_option('playlist-manager')
+    subdir('playlist-manager')
+  endif
+
+  if get_option('searchtool')
+    subdir('search-tool')
+  endif
+
+  if get_option('skins')
+    subdir('skins')
+  endif
+
+  if get_option('spectrum-analyzer')
+    subdir('cairo-spectrum')
+  endif
+
+  if get_option('statusicon')
+    subdir('statusicon')
   endif
 
   if get_option('vumeter')
@@ -195,12 +304,20 @@ if get_option('cdaudio')
   endif
 endif
 
+if get_option('console')
+  subdir('console')
+endif
+
 if get_option('ffaudio')
   subdir('ffaudio')
 endif
 
 if get_option('flac')
   subdir('flac')
+endif
+
+if get_option('metronome')
+  subdir('metronom')
 endif
 
 if get_option('modplug')
@@ -219,6 +336,10 @@ if get_option('opus')
   subdir('opus')
 endif
 
+if get_option('psf')
+  subdir('psf')
+endif
+
 if get_option('sid')
   subdir('sid')
 endif
@@ -227,12 +348,24 @@ if get_option('sndfile')
   subdir('sndfile')
 endif
 
+if get_option('tonegen')
+  subdir('tonegen')
+endif
+
 if get_option('vorbis')
   subdir('vorbis')
 endif
 
+if get_option('vtx')
+  subdir('vtx')
+endif
+
 if get_option('wavpack')
   subdir('wavpack')
+endif
+
+if get_option('xsf')
+  subdir('xsf')
 endif
 
 
