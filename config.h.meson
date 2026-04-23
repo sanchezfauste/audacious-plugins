@@ -33,6 +33,10 @@
 #mesondefine HAVE_LIBSDL3
 #mesondefine HAVE_SNDIO_1_9
 
+#mesondefine HAVE_PLAYBACK_HISTORY
+#mesondefine HAVE_PLAYLIST_MANAGER
+#mesondefine HAVE_SEARCH_TOOL
+
 #mesondefine HAVE_ADPLUG_NEMUOPL_H
 #mesondefine HAVE_ADPLUG_WEMUOPL_H
 #mesondefine HAVE_ADPLUG_KEMUOPL_H

@@ -79,8 +79,10 @@ static const AudguiMenuItem file_items[] = {
     MenuCommand (N_("Open _URL ..."), "folder-remote", 'l', CTRL, open_url),
     MenuCommand (N_("_Add Files ..."), "list-add", 'o', SHIFT_CTRL, add_files),
     MenuCommand (N_("Add U_RL ..."), "folder-remote", 'l', SHIFT_CTRL, add_url),
+#ifdef HAVE_SEARCH_TOOL
     MenuSep (),
     MenuCommand (N_("Search _Library"), "edit-find", 'y', CTRL, activate_search_tool),
+#endif
     MenuSep (),
     MenuCommand (N_("A_bout ..."), "help-about", NONE, audgui_show_about_window),
     MenuCommand (N_("_Settings ..."), "preferences-system", NONE, audgui_show_prefs_window),
@@ -104,6 +106,9 @@ static const AudguiMenuItem playback_items[] = {
     MenuToggle (N_("Stop After _Each Song"), nullptr, 'b', CTRL, nullptr, "stop_after_each_song", nullptr, "set stop_after_each_song"),
     MenuSep (),
     MenuCommand (N_("Song _Info ..."), "dialog-information", 'i', CTRL, audgui_infowin_show_current),
+#ifdef HAVE_PLAYBACK_HISTORY
+    MenuCommand (N_("Playback Histor_y ..."), nullptr, 'h', CTRL, activate_playback_history),
+#endif
     MenuCommand (N_("Jump to _Time ..."), "go-jump", 'k', CTRL, audgui_jump_to_time),
     MenuCommand (N_("_Jump to Song ..."), "go-jump", 'j', CTRL, audgui_jump_to_track),
     MenuSep (),
@@ -174,7 +179,9 @@ static const AudguiMenuItem playlist_items[] = {
     MenuCommand (N_("_Import ..."), "document-open", NONE, audgui_import_playlist),
     MenuCommand (N_("_Export ..."), "document-save", NONE, audgui_export_playlist),
     MenuSep (),
+#ifdef HAVE_PLAYLIST_MANAGER
     MenuCommand (N_("Playlist _Manager ..."), "audio-x-generic", 'p', CTRL, activate_playlist_manager),
+#endif
     MenuCommand (N_("_Queue Manager ..."), nullptr, 'u', CTRL, audgui_queue_manager_show)
 };
 

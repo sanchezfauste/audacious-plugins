@@ -1,46 +1,43 @@
-/* Audacious LIRC plugin - lirc.c
+/*
+ * LIRC plugin for Audacious
+ * Copyright (c) 1998-1999 Carl van Schaik (carl@leg.uct.ac.za)
+ * Copyright (C) 2000 Christoph Bartelmus (xmms@bartelmus.de)
+ * Copyright (C) 2005 Audacious development team
+ * Copyright (C) 2012 Joonas Harjumäki (jharjuma@gmail.com)
+ *
+ * Some code was taken from:
+ * IRman plugin for XMMS by Charles Sielski (stray@teklabs.net)
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ */
 
-   Copyright (C) 2012 Joonas Harjumäki (jharjuma@gmail.com)
-
-   Copyright (C) 2005 Audacious development team
-
-   Copyright (c) 1998-1999 Carl van Schaik (carl@leg.uct.ac.za)
-
-   Copyright (C) 2000 Christoph Bartelmus (xmms@bartelmus.de)
-
-   some code was stolen from:
-   IRman plugin for xmms by Charles Sielski (stray@teklabs.net)
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-*/
-
-#include <unistd.h>
 #include <fcntl.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include <glib.h>
 #include <lirc/lirc_client.h>
 
 #include <libaudcore/drct.h>
+#include <libaudcore/hook.h>
 #include <libaudcore/i18n.h>
-#include <libaudcore/runtime.h>
 #include <libaudcore/playlist.h>
 #include <libaudcore/plugin.h>
 #include <libaudcore/preferences.h>
-#include <libaudcore/hook.h>
+#include <libaudcore/runtime.h>
 
 class LIRCPlugin : public GeneralPlugin
 {
@@ -68,48 +65,43 @@ EXPORT LIRCPlugin aud_plugin_instance;
 static gboolean lirc_input_callback (GIOChannel * source, GIOCondition condition, void * data);
 
 const char * const LIRCPlugin::defaults[] = {
- "enable_reconnect", "TRUE",
- "reconnect_timeout", "5",
- nullptr};
+    "enable_reconnect", "TRUE",
+    "reconnect_timeout", "5",
+    nullptr
+};
 
-int lirc_fd = -1;
-struct lirc_config *config = nullptr;
-int tracknr = 0;
-int mute = 0;                  /* mute flag */
-int mute_vol = 0;              /* holds volume before mute */
+static int lirc_fd = -1;
+static struct lirc_config * config = nullptr;
+static bool muted = false; /* mute flag */
+static int mute_vol = 0;   /* holds volume before mute */
+static unsigned input_tag;
+static char track_no[64];
+static int track_no_pos;
+static unsigned tid;
 
-unsigned input_tag;
-
-char track_no[64];
-int track_no_pos;
-int tid;
-
-void init_lirc ()
+static void init_lirc ()
 {
-    int flags;
-
     if ((lirc_fd = lirc_init ((char *) "audacious", 1)) == -1)
     {
         AUDERR ("could not init LIRC support\n");
         return;
     }
-    if (lirc_readconfig (nullptr, &config, nullptr) == -1)
+
+    if (lirc_readconfig (nullptr, & config, nullptr) == -1)
     {
         lirc_deinit ();
         AUDERR ("could not read LIRC config file\n");
         return;
     }
 
-    input_tag =
-        g_io_add_watch (g_io_channel_unix_new (lirc_fd), G_IO_IN,
-                        lirc_input_callback, nullptr);
-
     fcntl (lirc_fd, F_SETOWN, getpid ());
-    flags = fcntl (lirc_fd, F_GETFL, 0);
+    int flags = fcntl (lirc_fd, F_GETFL, 0);
     if (flags != -1)
-    {
         fcntl (lirc_fd, F_SETFL, flags | O_NONBLOCK);
-    }
+
+    GIOChannel * channel = g_io_channel_unix_new (lirc_fd);
+    input_tag = g_io_add_watch (channel, G_IO_IN, lirc_input_callback, nullptr);
+    g_io_channel_unref (channel);
 }
 
 bool LIRCPlugin::init ()
@@ -121,7 +113,7 @@ bool LIRCPlugin::init ()
     return true;
 }
 
-gboolean reconnect_lirc (void * data)
+static gboolean reconnect_lirc (void * data)
 {
     AUDERR ("trying to reconnect...\n");
     aud_plugin_instance.init ();
@@ -133,10 +125,15 @@ void LIRCPlugin::cleanup ()
     if (config)
     {
         if (input_tag)
+        {
             g_source_remove (input_tag);
+            input_tag = 0;
+        }
 
+        lirc_freeconfig (config);
         config = nullptr;
     }
+
     if (lirc_fd != -1)
     {
         lirc_deinit ();
@@ -144,7 +141,7 @@ void LIRCPlugin::cleanup ()
     }
 }
 
-gboolean jump_to (void * data)
+static gboolean jump_to (void * data)
 {
     auto playlist = Playlist::active_playlist ();
     playlist.set_position (atoi (track_no) - 1);
@@ -155,21 +152,12 @@ gboolean jump_to (void * data)
 
 static gboolean lirc_input_callback (GIOChannel * source, GIOCondition condition, void * data)
 {
-    char *code;
-    char *c;
-    int output_time, v;
-    int ret;
-    char *ptr;
-    int balance;
-#if 0
-    gboolean show_pl;
-#endif
-    int n;
-    char *utf8_title_markup;
+    char * code, * c, * ptr;
+    int ret, n;
 
-    while ((ret = lirc_nextcode (&code)) == 0 && code != nullptr)
+    while ((ret = lirc_nextcode (& code)) == 0 && code != nullptr)
     {
-        while ((ret = lirc_code2char (config, code, &c)) == 0 && c != nullptr)
+        while ((ret = lirc_code2char (config, code, & c)) == 0 && c != nullptr)
         {
             if (g_ascii_strcasecmp ("PLAY", c) == 0)
                 aud_drct_play ();
@@ -189,9 +177,7 @@ static gboolean lirc_input_callback (GIOChannel * source, GIOCondition condition
                 if (n <= 0)
                     n = 1;
                 for (; n > 0; n--)
-                {
                     aud_drct_pl_next ();
-                }
             }
             else if (g_ascii_strncasecmp ("PREV", c, 4) == 0)
             {
@@ -203,9 +189,7 @@ static gboolean lirc_input_callback (GIOChannel * source, GIOCondition condition
                 if (n <= 0)
                     n = 1;
                 for (; n > 0; n--)
-                {
                     aud_drct_pl_prev ();
-                }
             }
             else if (g_ascii_strcasecmp ("SHUFFLE", c) == 0)
                 aud_toggle_bool ("shuffle");
@@ -220,7 +204,7 @@ static gboolean lirc_input_callback (GIOChannel * source, GIOCondition condition
 
                 if (n <= 0)
                     n = 5000;
-                output_time = aud_drct_get_time ();
+                int output_time = aud_drct_get_time ();
                 aud_drct_seek (output_time + n);
             }
             else if (g_ascii_strncasecmp ("BWD", c, 3) == 0)
@@ -232,7 +216,7 @@ static gboolean lirc_input_callback (GIOChannel * source, GIOCondition condition
 
                 if (n <= 0)
                     n = 5000;
-                output_time = aud_drct_get_time ();
+                int output_time = aud_drct_get_time ();
                 aud_drct_seek (output_time - n);
             }
             else if (g_ascii_strncasecmp ("VOL_UP", c, 6) == 0)
@@ -244,7 +228,7 @@ static gboolean lirc_input_callback (GIOChannel * source, GIOCondition condition
                 if (n <= 0)
                     n = 5;
 
-                v = aud_drct_get_volume_main ();
+                int v = aud_drct_get_volume_main ();
                 if (v > (100 - n))
                     v = 100 - n;
                 aud_drct_set_volume_main (v + n);
@@ -258,7 +242,7 @@ static gboolean lirc_input_callback (GIOChannel * source, GIOCondition condition
                 if (n <= 0)
                     n = 5;
 
-                v = aud_drct_get_volume_main ();
+                int v = aud_drct_get_volume_main ();
                 if (v < n)
                     v = n;
                 aud_drct_set_volume_main (v - n);
@@ -269,17 +253,17 @@ static gboolean lirc_input_callback (GIOChannel * source, GIOCondition condition
             }
             else if (g_ascii_strcasecmp ("MUTE", c) == 0)
             {
-                if (mute == 0)
+                if (! muted)
                 {
-                    mute = 1;
                     /* store the master volume so
                        we can restore it on unmute. */
+                    muted = true;
                     mute_vol = aud_drct_get_volume_main ();
                     aud_drct_set_volume_main (0);
                 }
                 else
                 {
-                    mute = 0;
+                    muted = false;
                     aud_drct_set_volume_main (mute_vol);
                 }
             }
@@ -292,7 +276,7 @@ static gboolean lirc_input_callback (GIOChannel * source, GIOCondition condition
                 if (n <= 0)
                     n = 5;
 
-                balance = aud_drct_get_volume_balance ();
+                int balance = aud_drct_get_volume_balance ();
                 balance -= n;
                 if (balance < -100)
                     balance = -100;
@@ -307,7 +291,7 @@ static gboolean lirc_input_callback (GIOChannel * source, GIOCondition condition
                 if (n <= 0)
                     n = 5;
 
-                balance = aud_drct_get_volume_balance ();
+                int balance = aud_drct_get_volume_balance ();
                 balance += n;
                 if (balance > 100)
                     balance = 100;
@@ -315,16 +299,11 @@ static gboolean lirc_input_callback (GIOChannel * source, GIOCondition condition
             }
             else if (g_ascii_strcasecmp ("BAL_CENTER", c) == 0)
             {
-                balance = 0;
-                aud_drct_set_volume_balance (balance);
+                aud_drct_set_volume_balance (0);
             }
             else if (g_ascii_strcasecmp ("LIST", c) == 0)
             {
-#if 0
-                show_pl = aud_drct_pl_win_is_visible ();
-                show_pl = (show_pl) ? 0 : 1;
-                aud_drct_pl_win_toggle (show_pl);
-#endif
+                // TODO: Toggle playlist visibility
             }
             else if (g_ascii_strcasecmp ("PLAYLIST_CLEAR", c) == 0)
             {
@@ -344,7 +323,7 @@ static gboolean lirc_input_callback (GIOChannel * source, GIOCondition condition
                     track_no[track_no_pos++] = *c;
                     track_no[track_no_pos] = 0;
                     tid = g_timeout_add (1500, jump_to, nullptr);
-                    utf8_title_markup = g_markup_printf_escaped ("%s", track_no);
+                    char * utf8_title_markup = g_markup_printf_escaped ("%s", track_no);
                     hook_call ("aosd toggle", utf8_title_markup);
                     g_free (utf8_title_markup);
                 }
@@ -354,10 +333,12 @@ static gboolean lirc_input_callback (GIOChannel * source, GIOCondition condition
                 AUDERR ("unknown command \"%s\"\n", c);
             }
         }
+
         g_free (code);
         if (ret == -1)
             break;
     }
+
     if (ret == -1)
     {
         /* something went badly wrong */

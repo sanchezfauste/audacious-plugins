@@ -83,7 +83,9 @@ static const AudguiMenuItem output_items[] = {
 static const AudguiMenuItem main_items[] = {
     MenuCommand (N_("Open Files ..."), "document-open", 'l', NO_MOD, action_play_file),
     MenuCommand (N_("Open URL ..."), "folder-remote", 'l', CTRL, action_play_location),
+#ifdef HAVE_SEARCH_TOOL
     MenuCommand (N_("Search Library"), "edit-find", 'y', NO_MOD, action_search_tool),
+#endif
     MenuSep (),
     MenuSub (N_("Playback"), nullptr, get_menu_playback),
     MenuSub (N_("Playlist"), nullptr, get_menu_playlist),
@@ -99,6 +101,9 @@ static const AudguiMenuItem main_items[] = {
 
 static const AudguiMenuItem playback_items[] = {
     MenuCommand (N_("Song Info ..."), "dialog-information", 'i', NO_MOD, audgui_infowin_show_current),
+#ifdef HAVE_PLAYBACK_HISTORY
+    MenuCommand (N_("Playback History ..."), nullptr, 'h', NO_MOD, action_playback_history),
+#endif
     MenuSep (),
     MenuToggle (N_("Repeat"), nullptr, 'r', NO_MOD, nullptr, "repeat", nullptr, "set repeat"),
     MenuToggle (N_("Shuffle"), nullptr, 's', NO_MOD, nullptr, "shuffle", nullptr, "set shuffle"),
@@ -135,7 +140,9 @@ static const AudguiMenuItem playlist_items[] = {
     MenuCommand (N_("Import Playlist ..."), "document-open", 'o', NO_MOD, audgui_import_playlist),
     MenuCommand (N_("Export Playlist ..."), "document-save", 's', SHIFT, audgui_export_playlist),
     MenuSep (),
+#ifdef HAVE_PLAYLIST_MANAGER
     MenuCommand (N_("Playlist Manager ..."), "audio-x-generic", 'p', NO_MOD, action_playlist_manager),
+#endif
     MenuCommand (N_("Queue Manager ..."), nullptr, 'u', CTRL, audgui_queue_manager_show),
     MenuSep (),
     MenuCommand (N_("Refresh Playlist"), "view-refresh", GDK_KEY_F5, NO_MOD, pl_refresh)

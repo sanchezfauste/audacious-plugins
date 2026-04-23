@@ -1215,6 +1215,7 @@ void popup_menu_tab (const GdkEvent * event, Playlist playlist)
     popup_menu ((GtkMenu *) menu_tab, event);
 }
 
+#ifdef HAVE_SEARCH_TOOL
 void activate_search_tool ()
 {
     if (! search_tool)
@@ -1223,7 +1224,21 @@ void activate_search_tool ()
     aud_plugin_enable (search_tool, true);
     layout_focus (search_tool);
 }
+#endif
 
+#ifdef HAVE_PLAYBACK_HISTORY
+void activate_playback_history ()
+{
+    PluginHandle * history = aud_plugin_lookup_basename ("playback-history");
+    if (! history)
+        return;
+
+    aud_plugin_enable (history, true);
+    layout_focus (history);
+}
+#endif
+
+#ifdef HAVE_PLAYLIST_MANAGER
 void activate_playlist_manager ()
 {
     PluginHandle * manager = aud_plugin_lookup_basename ("playlist-manager");
@@ -1233,6 +1248,7 @@ void activate_playlist_manager ()
     aud_plugin_enable (manager, true);
     layout_focus (manager);
 }
+#endif
 
 void update_toolbar_icons ()
 {

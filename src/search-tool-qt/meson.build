@@ -1,3 +1,5 @@
+conf.set10('HAVE_SEARCH_TOOL', true)
+
 shared_module('search-tool-qt',
   'html-delegate.cc',
   'library.cc',

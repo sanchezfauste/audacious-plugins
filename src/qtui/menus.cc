@@ -80,15 +80,21 @@ static void configure_visualizations()
     audqt::prefswin_show_plugin_page(PluginType::Vis);
 }
 
+#ifdef HAVE_SEARCH_TOOL
 static void show_search_tool() { hook_call("qtui show search tool", nullptr); }
+#endif
+#ifdef HAVE_PLAYBACK_HISTORY
 static void show_playback_history()
 {
     hook_call("qtui show playback history", nullptr);
 }
+#endif
+#ifdef HAVE_PLAYLIST_MANAGER
 static void show_playlist_manager()
 {
     hook_call("qtui show playlist manager", nullptr);
 }
+#endif
 static void toggle_menubar() { hook_call("qtui toggle menubar", nullptr); }
 static void toggle_infoarea() { hook_call("qtui toggle infoarea", nullptr); }
 static void toggle_infoarea_vis()
@@ -120,9 +126,11 @@ QMenuBar * qtui_build_menubar(QWidget * parent)
                            add_folder),
         audqt::MenuCommand(
             {N_("Add U_RL ..."), "folder-remote", "Ctrl+Shift+L"}, add_url),
+#ifdef HAVE_SEARCH_TOOL
         audqt::MenuSep(),
         audqt::MenuCommand({N_("Search _Library"), "edit-find", "Ctrl+Y"},
                            show_search_tool),
+#endif
         audqt::MenuSep(),
         audqt::MenuCommand({N_("A_bout ..."), "help-about"},
                            aud_ui_show_about_window),
@@ -168,9 +176,11 @@ QMenuBar * qtui_build_menubar(QWidget * parent)
         audqt::MenuCommand(
             {N_("Song _Info ..."), "dialog-information", "Ctrl+I"},
             audqt::infowin_show_current),
+#ifdef HAVE_PLAYBACK_HISTORY
         audqt::MenuCommand(
             {N_("Playback Histor_y ..."), "view-history", "Ctrl+H"},
             show_playback_history),
+#endif
         audqt::MenuSep(),
         audqt::MenuCommand({N_("Set Repeat Point _A"), nullptr, "Ctrl+1"},
                            set_ab_repeat_a),
@@ -247,9 +257,11 @@ QMenuBar * qtui_build_menubar(QWidget * parent)
         audqt::MenuCommand({N_("_Import ..."), "document-open"}, pl_import),
         audqt::MenuCommand({N_("_Export ..."), "document-save"}, pl_export),
         audqt::MenuSep(),
+#ifdef HAVE_PLAYLIST_MANAGER
         audqt::MenuCommand(
             {N_("Playlist _Manager ..."), "audio-x-generic", "Ctrl+P"},
             show_playlist_manager),
+#endif
         audqt::MenuCommand({N_("_Queue Manager ..."), nullptr, "Ctrl+U"},
                            audqt::queue_manager_show)};
 
