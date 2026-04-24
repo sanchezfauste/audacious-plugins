@@ -28,6 +28,7 @@
 #include <QString>
 #include <QTimer>
 #include <QElapsedTimer>
+#include <QPixmap>
 
 class VUMeterQtWidget : public QWidget
 {
@@ -42,11 +43,15 @@ private:
     static const int redraw_interval;
 
     int nchannels = 2;
+    float channels_input_peak[max_channels];
+    float channels_envelope[max_channels];
     float channels_db_level[max_channels];
     float channels_peaks[max_channels];
     QElapsedTimer last_peak_times[max_channels]; // Time elapsed since peak was set
     QLinearGradient vumeter_pattern;
     QLinearGradient background_vumeter_pattern;
+    QPixmap static_layer;
+    bool static_layer_dirty = true;
     float legend_width;
     float vumeter_height;
     float vumeter_width;
@@ -66,6 +71,7 @@ private:
     void draw_vu_legend_db(QPainter &p, float db, const char *text);
     void draw_vu_legend_line(QPainter &p, float db, float line_width_factor = 1.0f);
     void draw_visualizer_peaks(QPainter &p);
+    void update_static_layer();
     void update_sizes();
 
     static QString format_db(const float val);

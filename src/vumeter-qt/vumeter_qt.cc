@@ -34,6 +34,16 @@ const char VUMeterQt::about[] =
 const PreferencesWidget VUMeterQt::widgets[] = {
     WidgetLabel (N_("<b>VU Meter Settings</b>")),
     WidgetSpin (
+        N_("Attack time:"),
+        WidgetFloat ("vumeter", "attack_time"),
+        {0.001, 1, 0.001, N_("seconds")}
+    ),
+    WidgetSpin (
+        N_("Release time:"),
+        WidgetFloat ("vumeter", "release_time"),
+        {0.01, 5, 0.01, N_("seconds")}
+    ),
+    WidgetSpin (
         N_("Peak hold time:"),
         WidgetFloat ("vumeter", "peak_hold_time"),
         {0.1, 30, 0.1, N_("seconds")}
@@ -51,6 +61,8 @@ const PreferencesWidget VUMeterQt::widgets[] = {
 const PluginPreferences VUMeterQt::prefs = {{widgets}};
 
 const char * const VUMeterQt::prefs_defaults[] = {
+    "attack_time", "0.010",
+    "release_time", "0.220",
     "peak_hold_time", "1.6",
     "falloff", "13.3",
     "display_legend", "TRUE",

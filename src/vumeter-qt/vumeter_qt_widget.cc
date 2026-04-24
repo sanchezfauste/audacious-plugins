@@ -70,52 +70,71 @@ float VUMeterQtWidget::get_y_from_db(float db)
 
 void VUMeterQtWidget::render_multi_pcm (const float * pcm, int channels)
 {
+    if (channels <= 0)
+        return;
+
     nchannels = aud::clamp(channels, 1, max_channels);
 
-    float * peaks = new float[nchannels];
+    float peaks[max_channels];
     for (int channel = 0; channel < nchannels; channel++)
     {
-        peaks[channel] = fabsf(pcm[channel]);
+        peaks[channel] = 0;
     }
 
-    for (int i = 0; i < 512 * nchannels;)
+    for (int sample = 0; sample < 512; sample++)
     {
         for (int channel = 0; channel < nchannels; channel++)
         {
-            peaks[channel] = fmaxf(peaks[channel], fabsf(pcm[i++]));
+            int pos = sample * channels + channel;
+            peaks[channel] = aud::max(peaks[channel], aud::abs(pcm[pos]));
         }
     }
 
     for (int i = 0; i < nchannels; i++)
     {
-        float n = peaks[i];
-        float db = get_db_on_range(20 * log10f(n));
-
-        if (db > channels_db_level[i])
-        {
-            channels_db_level[i] = db;
-        }
-
-        if (db > channels_peaks[i])
-        {
-            channels_peaks[i] = db;
-            last_peak_times[i].start();
-        }
+        channels_input_peak[i] = aud::max(channels_input_peak[i], peaks[i]);
     }
-
-    delete[] peaks;
 }
 
 void VUMeterQtWidget::redraw_timer_expired()
 {
     qint64 elapsed_render_time = redraw_elapsed_timer.restart();
-    float falloff = aud_get_double ("vumeter", "falloff") / 1000.0;
-    qint64 peak_hold_time = aud_get_double ("vumeter", "peak_hold_time") * 1000;
+    float dt = elapsed_render_time / 1000.0f;
+    float attack_time = aud_get_double ("vumeter", "attack_time");
+    float release_time = aud_get_double ("vumeter", "release_time");
+    float falloff = aud_get_double ("vumeter", "falloff") / 1000.0f;
+    qint64 peak_hold_time = aud_get_double ("vumeter", "peak_hold_time") * 1000.0;
+
+    attack_time = aud::max(attack_time, 0.001f);
+    release_time = aud::max(release_time, 0.001f);
+
+    float attack_alpha = expf(-dt / attack_time);
+    float release_alpha = expf(-dt / release_time);
 
     for (int i = 0; i < nchannels; i++)
     {
-        float decay_amount = elapsed_render_time * falloff;
-        channels_db_level[i] = get_db_on_range(channels_db_level[i] - decay_amount);
+        float input = channels_input_peak[i];
+
+        if (input > channels_envelope[i])
+            channels_envelope[i] = attack_alpha * channels_envelope[i] + (1.0f - attack_alpha) * input;
+        else
+            channels_envelope[i] = release_alpha * channels_envelope[i] + (1.0f - release_alpha) * input;
+
+        channels_input_peak[i] = 0;
+
+        float env = aud::max(channels_envelope[i], 1e-6f);
+        float db = get_db_on_range(20 * log10f(env));
+
+        if (db < channels_db_level[i])
+        {
+            float decay_amount = elapsed_render_time * falloff;
+            channels_db_level[i] = get_db_on_range(channels_db_level[i] - decay_amount);
+            channels_db_level[i] = aud::max(channels_db_level[i], db);
+        }
+        else
+        {
+            channels_db_level[i] = db;
+        }
 
         qint64 elapsed_peak_time = last_peak_times[i].elapsed();
         if (channels_db_level[i] > channels_peaks[i] || elapsed_peak_time > peak_hold_time)
@@ -133,9 +152,25 @@ void VUMeterQtWidget::reset()
     for (int i = 0; i < max_channels; i++)
     {
         last_peak_times[i].start();
+        channels_input_peak[i] = 0;
+        channels_envelope[i] = 0;
         channels_db_level[i] = -db_range;
         channels_peaks[i] = -db_range;
     }
+}
+
+void VUMeterQtWidget::update_static_layer()
+{
+    if (! static_layer_dirty || size().isEmpty())
+        return;
+
+    static_layer = QPixmap(size());
+    QPainter p(& static_layer);
+    draw_background(p);
+    if (must_draw_vu_legend)
+        draw_vu_legend(p);
+
+    static_layer_dirty = false;
 }
 
 void VUMeterQtWidget::draw_background(QPainter & p)
@@ -318,6 +353,7 @@ void VUMeterQtWidget::update_sizes()
     }
     vumeter_pattern = get_vumeter_pattern();
     background_vumeter_pattern = get_vumeter_pattern(30);
+    static_layer_dirty = true;
 }
 
 VUMeterQtWidget::VUMeterQtWidget (QWidget * parent)
@@ -350,12 +386,15 @@ void VUMeterQtWidget::resizeEvent (QResizeEvent *)
 
 void VUMeterQtWidget::paintEvent (QPaintEvent *)
 {
+    update_static_layer();
+
     QPainter p(this);
 
-    draw_background(p);
+    if (! static_layer.isNull())
+        p.drawPixmap(0, 0, static_layer);
+
     if (must_draw_vu_legend)
     {
-        draw_vu_legend(p);
         draw_visualizer_peaks(p);
     }
     draw_visualizer(p);
